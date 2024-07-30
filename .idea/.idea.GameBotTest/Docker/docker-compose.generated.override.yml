@@ -1,0 +1,21 @@
+# This is a generated file. Not intended for manual editing.
+services:
+  gamebottest:
+    build:
+      context: "E:\\Coding\\Projects\\C#\\GameBotTest"
+      dockerfile: "GameBotTest/Dockerfile"
+      target: "base"
+    command: []
+    entrypoint:
+    - "dotnet"
+    - "/app/bin/Debug/net8.0/GameBotTest.dll"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+    image: "gamebottest:dev"
+    ports: []
+    volumes:
+    - "C:\\Users\\legen\\.nuget\\packages:/home/app/.nuget/packages"
+    - "E:\\Coding\\Projects\\C#\\GameBotTest\\GameBotTest:/app:rw"
+    - "E:\\Coding\\Projects\\C#\\GameBotTest:/src:rw"
+    working_dir: "/app"
