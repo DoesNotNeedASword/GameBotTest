@@ -18,7 +18,6 @@ using (var scope = app.Services.CreateScope())
     botClient = scope.ServiceProvider.GetRequiredService<ITelegramBotClient>();
     bot.Start();
 }
-
 app.MapPost("/webhook", async (Update e) =>
 {
     if (e.Message?.Text == null) return Results.Ok();
