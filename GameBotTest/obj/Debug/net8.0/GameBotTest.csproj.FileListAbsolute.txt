@@ -34,3 +34,7 @@ E:\Coding\Projects\C#\GameBotTest\GameBotTest\obj\Debug\net8.0\GameBotTest.pdb
 E:\Coding\Projects\C#\GameBotTest\GameBotTest\obj\Debug\net8.0\GameBotTest.genruntimeconfig.cache
 E:\Coding\Projects\C#\GameBotTest\GameBotTest\obj\Debug\net8.0\ref\GameBotTest.dll
 E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\System.Text.Json.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\obj\Debug\net8.0\GameBotTest.sourcelink.json
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\MongoDB.Bson.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\GameDomain.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\GameDomain.pdb

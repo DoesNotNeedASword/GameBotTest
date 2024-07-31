@@ -1,0 +1,13 @@
+E:\Coding\Projects\C#\GameBotTest\GameDomain\bin\Debug\net8.0\GameDomain.deps.json
+E:\Coding\Projects\C#\GameBotTest\GameDomain\bin\Debug\net8.0\GameDomain.dll
+E:\Coding\Projects\C#\GameBotTest\GameDomain\bin\Debug\net8.0\GameDomain.pdb
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\GameDomain.csproj.AssemblyReference.cache
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\GameDomain.GeneratedMSBuildEditorConfig.editorconfig
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\GameDomain.AssemblyInfoInputs.cache
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\GameDomain.AssemblyInfo.cs
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\GameDomain.csproj.CoreCompileInputs.cache
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\GameDomain.sourcelink.json
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\GameDomain.dll
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\refint\GameDomain.dll
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\GameDomain.pdb
+E:\Coding\Projects\C#\GameBotTest\GameDomain\obj\Debug\net8.0\ref\GameDomain.dll
