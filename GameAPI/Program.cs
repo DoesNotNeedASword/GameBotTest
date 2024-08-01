@@ -1,6 +1,7 @@
 using System.Text.Json;
-using GameAPI.Models;
 using GameAPI.Services;
+using GameDomain.Models;
+using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
@@ -72,21 +73,21 @@ app.MapGet("/api/players", async (PlayerService playerService, CacheService cach
     return Results.Ok(players);
 });
 
-app.MapGet("/api/players/{id:length(24)}", async (string id, PlayerService playerService) =>
+app.MapGet("/api/players/{id:long}", async (long id, PlayerService playerService) =>
 {
     var player = await playerService.GetAsync(id);
     return Results.Ok(player);
-})
-.WithName("GetPlayer");
+});
 
-app.MapPost("/api/players", async (Player player, PlayerService playerService, CacheService cacheService) =>
+
+app.MapPost("/api/players", async ([FromBody] Player player, PlayerService playerService, CacheService cacheService) =>
 {
     await playerService.CreateAsync(player);
     cacheService.RemoveAsync(cacheKey);  // Invalidate cache
     return Results.CreatedAtRoute("GetPlayer", new { id = player.Id }, player);
 });
 
-app.MapPut("/api/players/{id:length(24)}", async (string id, Player playerIn, PlayerService playerService, CacheService cacheService) =>
+app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, PlayerService playerService, CacheService cacheService) =>
 {
     var player = await playerService.GetAsync(id);
 
@@ -95,7 +96,7 @@ app.MapPut("/api/players/{id:length(24)}", async (string id, Player playerIn, Pl
     return Results.NoContent();
 });
 
-app.MapDelete("/api/players/{id:length(24)}", async (string id, PlayerService playerService, CacheService cacheService) =>
+app.MapDelete("/api/players/{id:long}", async (long id, PlayerService playerService, CacheService cacheService) =>
 {
     var player = await playerService.GetAsync(id);
 

@@ -1,28 +1,30 @@
 ﻿using System.Text;
 using System.Net.Http;
-using GameAPI.Models;
+using GameDomain.Models;
 using Newtonsoft.Json;
 
 namespace GameBotTest.GameHttpClient;
 
-public class GameApiClient(HttpClient httpClient) : IGameApiClient
+public class GameApiClient(IHttpClientFactory httpClient) : IGameApiClient
 {
+    private readonly HttpClient _httpClient = httpClient.CreateClient("GameApi");
 
     public async Task<Player?> RegisterPlayerAsync(long telegramId, string name, string referrerId = null)
     {
-        var playerData = new
+        var playerData = new Player
         {
-            telegramId,
-            name,
-            level = 0,
-            score = 0,
-            rating = 0,
-            softCurrency = 0,
-            hardCurrency = 0,
-            referrerId
+            TelegramId = telegramId,
+            Name = name,
+            ReferrerId = referrerId
         };
         
-        using var response = await httpClient.PostAsJsonAsync("/api/players", playerData);
+        using var response = await _httpClient.PostAsJsonAsync("/api/players", playerData);
         return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<Player>() : null;
+    }
+
+    public async Task<string> GetPlayerId(long telegramId)
+    {
+        using var response = await _httpClient.GetAsync($"/api/players/{telegramId}");
+        return response.IsSuccessStatusCode ? (await response.Content.ReadFromJsonAsync<Player>())!.Id : string.Empty;
     }
 }

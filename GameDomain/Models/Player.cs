@@ -1,8 +1,7 @@
-﻿using System.Text.Json.Serialization;
-using MongoDB.Bson;
+﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace GameAPI.Models;
+namespace GameDomain.Models;
 
 public class Player
 {

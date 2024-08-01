@@ -1,6 +1,7 @@
 using GameBotTest;
 using GameBotTest.GameHttpClient;
 using GameBotTest.Models;
+using GameBotTest.Startup;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -12,17 +13,27 @@ builder.Services.AddSingleton<ITelegramBotClient>(_ => new TelegramBotClient(tok
 builder.Services.AddSingleton<CommandParser>();
 builder.Services.AddSingleton<CommandHandler>();
 builder.Services.AddScoped<HttpClient>();
-builder.Services.AddSingleton<Bot>();
-builder.Services.AddHttpClient<IGameApiClient, GameApiClient>(client =>
+builder.Services.AddSingleton<UpdateHandler>();
+if (builder.Configuration["ASPNETCORE_ENVIRONMENT"] != "Development")
+{
+    builder.Services.AddSingleton<IBotStartup, WebhookBotStartup>();
+}
+else
+{
+    builder.Services.AddSingleton<IBotStartup, PoolingBotStartup>();
+}
+
+builder.Services.AddHttpClient<GameApiClient>("GameApi",client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["GameApi"]!);
 });
+builder.Services.AddScoped<IGameApiClient, GameApiClient>();
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var bot = scope.ServiceProvider.GetRequiredService<Bot>();
-    bot.Start();
+    var bot = scope.ServiceProvider.GetRequiredService<IBotStartup>();
+    bot.StartAsync();
 }
 
 app.MapPost("/webhook", async (CommandParser commandParser, CommandHandler commandHandler, Update update) =>

@@ -14,12 +14,15 @@ namespace GameBotTest
 
         private readonly Dictionary<string, Func<Context, Task>> _commandHandlers;
 
-        public CommandHandler(ITelegramBotClient botClient, IConfiguration configuration, IGameApiClient apiClient)
+        public CommandHandler(ITelegramBotClient botClient, IConfiguration configuration, IServiceScopeFactory scopeFactory)
         {
             _botClient = botClient;
             _configuration = configuration;
-            _apiClient = apiClient;
-
+            using (var scope = scopeFactory.CreateScope())
+            {
+                var serviceProvider = scope.ServiceProvider;
+                _apiClient = serviceProvider.GetRequiredService<IGameApiClient>();
+            }
             _commandHandlers = new Dictionary<string, Func<Context, Task>>
             {
                 { "start", HandleStartCommand },
@@ -90,7 +93,8 @@ namespace GameBotTest
         private async Task HandleJoinCommunityCommand(Context context)
         {
             var communityLink = _configuration["COMMUNITY_LINK"];
-            var communityMessage = $"Наш продукт находится в ранней стадии разработки. Мы будем рады вашим отзывам! \nСсылка на группу: {communityLink}";
+            var id = await _apiClient.GetPlayerId(context.ChatId);
+            var communityMessage = $"Наш продукт находится в ранней стадии разработки. Мы будем рады вашим отзывам! \nСсылка на группу: {communityLink+id}";
             await _botClient.SendTextMessageAsync(context.ChatId, communityMessage);
         }
     }
