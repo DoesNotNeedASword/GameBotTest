@@ -7,13 +7,15 @@
     env_file: .env
     ports:
       - "5141:5140"
+    environment:
+      GameApi: http://gameapi:8080
   gameapi:
     image: gameapi
     build:
       context: .
       dockerfile: GameAPI/Dockerfile
     ports:
-      - "8080:8080"
+      - "5000:8080"
     depends_on:
       - mongo
       - redis

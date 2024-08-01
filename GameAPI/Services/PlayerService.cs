@@ -1,4 +1,4 @@
-﻿using GameAPI.Models;
+﻿using GameDomain.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -14,14 +14,20 @@ public class PlayerService(IMongoDatabase database)
         return await cursor.ToListAsync();
     }
 
-    public async Task<Player> GetAsync(string id)
+    public async Task<Player> GetAsync(long id)
     {
-        var cursor = await _players.FindAsync(player => player.Id == id);
+        var cursor = await _players.FindAsync(player => player.TelegramId == id);
         return await cursor.FirstOrDefaultAsync();
     }
 
     public async Task<Player> CreateAsync(Player player)
     {
+        var existingPlayer = await _players.Find(p => p.TelegramId == player.TelegramId).FirstOrDefaultAsync();
+        if (existingPlayer != null)
+        {
+            throw new Exception("A player with the same TelegramId already exists.");
+        }
+
         if (!string.IsNullOrEmpty(player.ReferrerId))
         {
             var referrerExists = await _players.Find(p => p.Id == player.ReferrerId).AnyAsync();
@@ -32,19 +38,21 @@ public class PlayerService(IMongoDatabase database)
         }
 
         if (!ObjectId.TryParse(player.Id, out _))
+        {
             player.Id = ObjectId.GenerateNewId().ToString();
-    
+        }
+
         await _players.InsertOneAsync(player);
         return player;
     }
 
-    public async Task UpdateAsync(string id, Player playerIn)
+    public async Task UpdateAsync(long id, Player playerIn)
     {
-        await _players.ReplaceOneAsync(player => player.Id == id, playerIn);
+        await _players.ReplaceOneAsync(player => player.TelegramId == id, playerIn);
     }
 
-    public async Task RemoveAsync(string id)
+    public async Task RemoveAsync(long id)
     {
-        await _players.DeleteOneAsync(player => player.Id == id);
+        await _players.DeleteOneAsync(player => player.TelegramId == id);
     }
 }
