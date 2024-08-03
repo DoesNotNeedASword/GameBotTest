@@ -4,14 +4,15 @@ using MongoDB.Driver;
 
 namespace GameAPI.Services;
 
-public class PlayerService(IMongoDatabase database)
+public class PlayerService(IMongoDatabase database, LevelService levelService)
 {
     private readonly IMongoCollection<Player> _players = database.GetCollection<Player>("Players");
 
     public async Task<List<Player>> GetAsync()
     {
         var cursor = await _players.FindAsync(player => true);
-        return await cursor.ToListAsync();
+        var list = await cursor.ToListAsync();
+        return list;
     }
 
     public async Task<Player> GetAsync(long id)
@@ -55,4 +56,24 @@ public class PlayerService(IMongoDatabase database)
     {
         await _players.DeleteOneAsync(player => player.TelegramId == id);
     }
+    public async Task<bool> UpdateRatingAsync(string id, int change)
+    {
+        var player = await _players.Find(p => p.Id == id).FirstOrDefaultAsync();
+        if (player == null)
+            throw new Exception("NotFound");
+
+        player.Rating += change;
+        var newLevel = levelService.CheckLevel(player.Rating);
+
+        if (newLevel != player.Level)
+            player.Level = newLevel;
+
+        var update = Builders<Player>.Update
+            .Set(p => p.Rating, player.Rating)
+            .Set(p => p.Level, player.Level);
+
+        var result = await _players.UpdateOneAsync(p => p.Id == id, update);
+        return result.ModifiedCount == 1;
+    }
+
 }

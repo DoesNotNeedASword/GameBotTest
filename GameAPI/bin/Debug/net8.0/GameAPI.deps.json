@@ -295,7 +295,8 @@
       },
       "GameDomain/1.0.0": {
         "dependencies": {
-          "MongoDB.Bson": "2.28.0"
+          "MongoDB.Bson": "2.28.0",
+          "MongoDB.Driver": "2.27.0"
         },
         "runtime": {
           "GameDomain.dll": {}

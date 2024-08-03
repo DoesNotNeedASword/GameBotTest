@@ -545,7 +545,8 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v8.0",
         "dependencies": {
-          "MongoDB.Bson": "2.28.0"
+          "MongoDB.Bson": "2.28.0",
+          "MongoDB.Driver": "2.27.0"
         },
         "compile": {
           "bin/placeholder/GameDomain.dll": {}

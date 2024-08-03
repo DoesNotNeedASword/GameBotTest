@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameAPI", "GameAPI\GameAPI.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameDomain", "GameDomain\GameDomain.csproj", "{5C34A116-B991-4EEC-83C4-6E8D78DC859D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{D4F61E4F-26A1-4AB8-8749-6A6B0749BA14}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,5 +33,9 @@ Global
 		{5C34A116-B991-4EEC-83C4-6E8D78DC859D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5C34A116-B991-4EEC-83C4-6E8D78DC859D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5C34A116-B991-4EEC-83C4-6E8D78DC859D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4F61E4F-26A1-4AB8-8749-6A6B0749BA14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4F61E4F-26A1-4AB8-8749-6A6B0749BA14}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4F61E4F-26A1-4AB8-8749-6A6B0749BA14}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4F61E4F-26A1-4AB8-8749-6A6B0749BA14}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

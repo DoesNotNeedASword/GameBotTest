@@ -13,12 +13,10 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors();
 
-// Configure MongoDB
 var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
 var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"];
 const string cacheKey = "players";
 
-// Use the connection string and database name to configure your MongoDB client
 builder.Services.AddSingleton<IMongoClient>(new MongoClient(mongoConnectionString));
 builder.Services.AddSingleton<IMongoDatabase>(provider =>
 {
@@ -29,7 +27,7 @@ builder.Services.AddSingleton<IMongoDatabase>(provider =>
 BsonClassMap.RegisterClassMap<Player>(cm =>
 {
     cm.AutoMap();
-    cm.SetIgnoreExtraElements(true);  // Ignore fields in MongoDB that are not in the C# class
+    cm.SetIgnoreExtraElements(true);  
 });
 
 builder.Services.AddStackExchangeRedisCache(options =>
