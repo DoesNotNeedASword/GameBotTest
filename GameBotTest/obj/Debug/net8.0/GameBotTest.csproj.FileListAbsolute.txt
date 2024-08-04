@@ -38,3 +38,15 @@ E:\Coding\Projects\C#\GameBotTest\GameBotTest\obj\Debug\net8.0\GameBotTest.sourc
 E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\MongoDB.Bson.dll
 E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\GameDomain.dll
 E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\GameDomain.pdb
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\AWSSDK.Core.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\AWSSDK.SecurityToken.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\DnsClient.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\MongoDB.Driver.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\MongoDB.Driver.Core.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\MongoDB.Libmongocrypt.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\SharpCompress.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\Snappier.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\ZstdSharp.dll
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\runtimes\linux\native\libmongocrypt.so
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\runtimes\osx\native\libmongocrypt.dylib
+E:\Coding\Projects\C#\GameBotTest\GameBotTest\bin\Debug\net8.0\runtimes\win\native\mongocrypt.dll

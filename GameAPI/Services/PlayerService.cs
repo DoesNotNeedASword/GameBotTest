@@ -1,10 +1,11 @@
-﻿using GameDomain.Models;
+﻿using GameDomain.Interfaces;
+using GameDomain.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace GameAPI.Services;
 
-public class PlayerService(IMongoDatabase database, LevelService levelService)
+public class PlayerService(IMongoDatabase database, ILevelService levelService)
 {
     private readonly IMongoCollection<Player> _players = database.GetCollection<Player>("Players");
 
@@ -71,9 +72,17 @@ public class PlayerService(IMongoDatabase database, LevelService levelService)
         var update = Builders<Player>.Update
             .Set(p => p.Rating, player.Rating)
             .Set(p => p.Level, player.Level);
-
+        
         var result = await _players.UpdateOneAsync(p => p.Id == id, update);
         return result.ModifiedCount == 1;
+    }
+    
+    public async Task<List<Player>> GetTopPlayers(int count)
+    {
+        return await _players.Find(_ => true) 
+            .SortByDescending(player => player.Rating) 
+            .Limit(count)
+            .ToListAsync();
     }
 
 }
