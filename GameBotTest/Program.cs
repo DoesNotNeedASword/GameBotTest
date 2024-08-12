@@ -1,5 +1,6 @@
 using GameBotTest;
 using GameBotTest.GameHttpClient;
+using GameBotTest.Handlers;
 using GameBotTest.Models;
 using GameBotTest.Startup;
 using Telegram.Bot;

@@ -6,9 +6,7 @@ namespace GameDomain.Models;
 public class Player
 {
     [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; }
-    
+    [BsonRepresentation(BsonType.Int64)]
     [BsonElement("TelegramId")]
     public long TelegramId { get; set; }
     
@@ -31,5 +29,5 @@ public class Player
     public int HardCurrency { get; set; } = 0;
 
     [BsonElement("ReferrerId")]
-    public string ReferrerId { get; set; } 
+    public long ReferrerId { get; set; } 
 }

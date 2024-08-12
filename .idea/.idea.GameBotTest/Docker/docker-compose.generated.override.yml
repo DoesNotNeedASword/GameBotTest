@@ -5,65 +5,35 @@ services:
       context: "E:\\Coding\\Projects\\C#\\GameBotTest"
       dockerfile: "GameAPI/Dockerfile"
       target: "base"
-      args:
-        BUILD_CONFIGURATION: "Debug"
     command: []
     entrypoint:
-    - "/opt/rider-debugger/linux-x64/dotnet/dotnet"
-    - "/opt/rider-debugger/JetBrains.Debugger.Worker.exe"
-    - "--mode=server"
-    - "--frontend-port=57100"
-    - "--backend-port=57300"
-    - "--timeout=60"
+    - "dotnet"
+    - "/app/bin/Debug/net8.0/GameAPI.dll"
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
-      RIDER_DEBUGGER_LOG_DIR: "/var/opt/rider-debugger"
-      RESHARPER_LOG_CONF: "/etc/opt/rider-debugger/backend-log.xml"
     image: "gameapi:dev"
-    ports:
-    - "127.0.0.1:57038:57100"
-    - "127.0.0.1:57238:57300"
+    ports: []
     volumes:
     - "C:\\Users\\legen\\.nuget\\packages:/home/app/.nuget/packages"
     - "E:\\Coding\\Projects\\C#\\GameBotTest\\GameAPI:/app:rw"
     - "E:\\Coding\\Projects\\C#\\GameBotTest:/src:rw"
-    - "C:\\Users\\legen\\AppData\\Local\\JetBrains\\RiderRemoteDebugger\\2023.3.3\\\
-      Linux64:/opt/rider-debugger"
-    - "E:\\Coding\\JetBrains Rider 2023.3.3\\bin:/etc/opt/rider-debugger/backend-log.xml"
-    - "C:\\Users\\legen\\AppData\\Local\\JetBrains\\Rider2023.3\\log\\DebuggerWorker\\\
-      JetBrains.Debugger.Worker.2024_8_04_14_29_57:/var/opt/rider-debugger:rw"
     working_dir: "/app"
   gamebottest:
     build:
       context: "E:\\Coding\\Projects\\C#\\GameBotTest"
       dockerfile: "GameBotTest/Dockerfile"
       target: "base"
-      args:
-        BUILD_CONFIGURATION: "Debug"
     command: []
     entrypoint:
-    - "/opt/rider-debugger/linux-x64/dotnet/dotnet"
-    - "/opt/rider-debugger/JetBrains.Debugger.Worker.exe"
-    - "--mode=server"
-    - "--frontend-port=57100"
-    - "--backend-port=57300"
-    - "--timeout=60"
+    - "dotnet"
+    - "/app/bin/Debug/net8.0/GameBotTest.dll"
     environment:
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
-      RIDER_DEBUGGER_LOG_DIR: "/var/opt/rider-debugger"
-      RESHARPER_LOG_CONF: "/etc/opt/rider-debugger/backend-log.xml"
     image: "gamebottest:dev"
-    ports:
-    - "127.0.0.1:57039:57100"
-    - "127.0.0.1:57239:57300"
+    ports: []
     volumes:
-    - "C:\\Users\\legen\\.nuget\\packages:/home/app/.nuget/packages"
+    - "C:\\Users\\legen\\.nuget\\packages:/root/.nuget/packages"
     - "E:\\Coding\\Projects\\C#\\GameBotTest\\GameBotTest:/app:rw"
     - "E:\\Coding\\Projects\\C#\\GameBotTest:/src:rw"
-    - "C:\\Users\\legen\\AppData\\Local\\JetBrains\\RiderRemoteDebugger\\2023.3.3\\\
-      Linux64:/opt/rider-debugger"
-    - "E:\\Coding\\JetBrains Rider 2023.3.3\\bin:/etc/opt/rider-debugger/backend-log.xml"
-    - "C:\\Users\\legen\\AppData\\Local\\JetBrains\\Rider2023.3\\log\\DebuggerWorker\\\
-      JetBrains.Debugger.Worker.2024_8_04_14_29_57:/var/opt/rider-debugger:rw"
     working_dir: "/app"

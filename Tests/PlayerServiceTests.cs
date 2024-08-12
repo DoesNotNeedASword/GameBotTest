@@ -35,7 +35,7 @@ public class PlayerServiceTests
         mockCursor.Setup(m => m.Current)
             .Returns(new List<Player> { new Player { TelegramId = 1 }, new Player { TelegramId = 2 } });
 
-        _service = new PlayerService(mockDatabase.Object, new LevelService());
+        _service = new PlayerService(mockDatabase.Object);
     }
 
     [Fact]

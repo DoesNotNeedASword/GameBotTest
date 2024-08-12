@@ -1,5 +1,4 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
 WORKDIR /app
 EXPOSE 5141
 EXPOSE 5140
@@ -7,9 +6,15 @@ EXPOSE 5140
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+
 COPY ["GameBotTest/GameBotTest.csproj", "GameBotTest/"]
-RUN dotnet restore "GameBotTest/GameBotTest.csproj"
+COPY ["packages/", "packages/"]
+
+# локальные пакеты
+RUN dotnet restore "GameBotTest/GameBotTest.csproj" --source "packages/" --source "https://api.nuget.org/v3/index.json"
+
 COPY . .
+
 WORKDIR "/src/GameBotTest"
 RUN dotnet build "GameBotTest.csproj" -c $BUILD_CONFIGURATION -o /app/build
 

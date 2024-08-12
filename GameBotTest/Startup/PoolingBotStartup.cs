@@ -1,4 +1,5 @@
-﻿using Telegram.Bot;
+﻿using GameBotTest.Handlers;
+using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 

@@ -1,6 +1,6 @@
 ﻿using GameBotTest.Models;
 
-namespace GameBotTest;
+namespace GameBotTest.Handlers;
 
 public class CommandParser
 {
@@ -14,7 +14,7 @@ public class CommandParser
                 _ => "unknown"
             };
         var code = GetCodeFromStartCommand(messageText);
-        context.RefCode = code;
+        context.RefId = Convert.ToInt64(code);
         return code == string.Empty ? "noRef" : $"start";
 
     }

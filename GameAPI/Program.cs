@@ -20,7 +20,12 @@ var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
 var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"];
 const string cacheKey = "players";
 
-builder.Services.AddSingleton<IMongoClient>(new MongoClient(mongoConnectionString));
+builder.Services.AddSingleton<IMongoClient>(_ =>
+{
+    var settings = MongoClientSettings.FromConnectionString(mongoConnectionString);
+    settings.MaxConnectionPoolSize = 500; 
+    return new MongoClient(settings);
+});
 builder.Services.AddSingleton<IMongoDatabase>(provider =>
 {
     var client = provider.GetRequiredService<IMongoClient>();
@@ -82,23 +87,38 @@ app.MapGet("/api/players/{id:long}", async (long id, PlayerService playerService
 {
     var player = await playerService.GetAsync(id);
     return Results.Ok(player);
-});
+}).WithName("GetPlayer");;
 
 
 app.MapPost("/api/players", async ([FromBody] Player player, PlayerService playerService, ICacheService cacheService) =>
 {
     await playerService.CreateAsync(player);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
-    return Results.CreatedAtRoute("GetPlayer", new { id = player.Id }, player);
+    return Results.CreatedAtRoute("GetPlayer", new { id = player.TelegramId }, player);
 });
 
 app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, PlayerService playerService, ICacheService cacheService) =>
 {
     var player = await playerService.GetAsync(id);
-
+    
     await playerService.UpdateAsync(id, playerIn);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
     return Results.NoContent();
+});
+
+app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [FromBody] int ratingChange, PlayerService playerService, ICacheService cacheService) =>
+{
+    var success = await playerService.UpdateRatingAsync(telegramId, ratingChange);
+
+    if (success)
+    {
+        await cacheService.RemoveAsync(cacheKey);  
+        return Results.Ok();
+    }
+    else
+    {
+        return Results.NotFound($"Player with Telegram ID {telegramId} not found.");
+    }
 });
 
 app.MapDelete("/api/players/{id:long}", async (long id, PlayerService playerService, ICacheService cacheService) =>
@@ -120,7 +140,7 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
             return Results.NotFound("No leaders found.");
         }
         
-        var playerList = leaders.Select(leader => new Player { Id = leader.Key, Rating = (int)leader.Value }).ToList();
+        var playerList = leaders.Select(leader => new Player { TelegramId = leader.Key, Rating = (int)leader.Value }).ToList();
 
         return Results.Ok(playerList);
     }

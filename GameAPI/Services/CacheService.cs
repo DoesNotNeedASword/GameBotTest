@@ -18,18 +18,18 @@ public class CacheService : ICacheService
         _playerService = playerService;
     }
 
-    public async Task<List<KeyValuePair<string, double>>> GetTopPlayersAsync(int count = 100)
+    public async Task<List<KeyValuePair<long, double>>> GetTopPlayersAsync(int count = 100)
     {
         // Пытаемся получить данные из кэша
         var cachedData = await _cache.GetStringAsync(LeaderboardKey);
         if (!string.IsNullOrEmpty(cachedData))
         {
-            return JsonSerializer.Deserialize<List<KeyValuePair<string, double>>>(cachedData);
+            return JsonSerializer.Deserialize<List<KeyValuePair<long, double>>>(cachedData);
         }
         
         // Получение данных из базы данных, если кэш пуст
         var playersFromDb = await _playerService.GetTopPlayers(count);
-        var players = playersFromDb.Select(p => new KeyValuePair<string, double>(p.Id, p.Rating)).ToList();
+        var players = playersFromDb.Select(p => new KeyValuePair<long, double>(p.TelegramId, p.Rating)).ToList();
         
         // Сериализация и кэширование данных
         var serializedData = JsonSerializer.Serialize(players);
@@ -55,12 +55,12 @@ public class CacheService : ICacheService
         await _cache.RemoveAsync(key);
     }
 
-    public async Task UpdateLeaderboardAsync(string playerId, int rating)
+    public async Task UpdateLeaderboardAsync(long playerId, int rating)
     {
         // Эта операция будет требовать считывания, обновления и записи обратно в кэш
         var leaders = await GetTopPlayersAsync(); // Считывание текущего списка
         var updatedLeaders = leaders.Select(p => 
-            new KeyValuePair<string, double>(p.Key, p.Key == playerId ? rating : p.Value)).ToList();
+            new KeyValuePair<long, double>(p.Key, p.Key == playerId ? rating : p.Value)).ToList();
 
         var serializedData = JsonSerializer.Serialize(updatedLeaders);
         await SetAsync(LeaderboardKey, serializedData, TimeSpan.FromMinutes(5)); // Перезапись обновлённых данных

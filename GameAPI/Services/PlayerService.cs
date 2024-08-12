@@ -1,11 +1,10 @@
 ﻿using GameDomain.Interfaces;
 using GameDomain.Models;
-using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace GameAPI.Services;
 
-public class PlayerService(IMongoDatabase database, ILevelService levelService)
+public class PlayerService(IMongoDatabase database)
 {
     private readonly IMongoCollection<Player> _players = database.GetCollection<Player>("Players");
 
@@ -24,26 +23,21 @@ public class PlayerService(IMongoDatabase database, ILevelService levelService)
 
     public async Task<Player> CreateAsync(Player player)
     {
-        var existingPlayer = await _players.Find(p => p.TelegramId == player.TelegramId).FirstOrDefaultAsync();
+        var existingPlayer = await (await _players.FindAsync(p => p.TelegramId == player.TelegramId)).FirstOrDefaultAsync();
         if (existingPlayer != null)
         {
             throw new Exception("A player with the same TelegramId already exists.");
         }
 
-        if (!string.IsNullOrEmpty(player.ReferrerId))
+        if (player.ReferrerId != 0)
         {
-            var referrerExists = await _players.Find(p => p.Id == player.ReferrerId).AnyAsync();
+            var referrerExists = await _players.Find(p => p.TelegramId == player.ReferrerId).AnyAsync();
             if (!referrerExists)
             {
                 throw new Exception("Referral ID does not correspond to any existing player.");
             }
         }
-
-        if (!ObjectId.TryParse(player.Id, out _))
-        {
-            player.Id = ObjectId.GenerateNewId().ToString();
-        }
-
+        
         await _players.InsertOneAsync(player);
         return player;
     }
@@ -52,29 +46,23 @@ public class PlayerService(IMongoDatabase database, ILevelService levelService)
     {
         await _players.ReplaceOneAsync(player => player.TelegramId == id, playerIn);
     }
+    
 
     public async Task RemoveAsync(long id)
     {
         await _players.DeleteOneAsync(player => player.TelegramId == id);
     }
-    public async Task<bool> UpdateRatingAsync(string id, int change)
+    public async Task<bool> UpdateRatingAsync(long telegramId, int change)
     {
-        var player = await _players.Find(p => p.Id == id).FirstOrDefaultAsync();
+        var filter = Builders<Player>.Filter.Eq(p => p.TelegramId, telegramId);
+        var player = await _players.Find(filter).FirstOrDefaultAsync();
+
         if (player == null)
-            throw new Exception("NotFound");
+            return false;
 
         player.Rating += change;
-        var newLevel = levelService.CheckLevel(player.Rating);
-
-        if (newLevel != player.Level)
-            player.Level = newLevel;
-
-        var update = Builders<Player>.Update
-            .Set(p => p.Rating, player.Rating)
-            .Set(p => p.Level, player.Level);
-        
-        var result = await _players.UpdateOneAsync(p => p.Id == id, update);
-        return result.ModifiedCount == 1;
+        await _players.ReplaceOneAsync(filter, player);
+        return true;
     }
     
     public async Task<List<Player>> GetTopPlayers(int count)

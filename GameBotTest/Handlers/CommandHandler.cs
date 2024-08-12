@@ -4,7 +4,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
-namespace GameBotTest
+namespace GameBotTest.Handlers
 {
     public class CommandHandler
     {
@@ -67,7 +67,7 @@ namespace GameBotTest
             {
                 ResizeKeyboard = true
             };
-            var player = await _apiClient.RegisterPlayerAsync(context.ChatId, context.UserName, context.RefCode);
+            var player = await _apiClient.RegisterPlayerAsync(context.ChatId, context.UserName, context.RefId);
             if (player is null)
             {
                 await _botClient.SendTextMessageAsync(context.ChatId, "Internal Error", replyMarkup: startKeyboard);
@@ -85,9 +85,9 @@ namespace GameBotTest
             var webAppUrl = _configuration["WEB_APP_URL"];
             var webAppKeyboard = new InlineKeyboardMarkup(new[]
             {
-                InlineKeyboardButton.WithWebApp("Запустить игру", new WebAppInfo { Url = webAppUrl })
+                InlineKeyboardButton.WithWebApp("Запустить игру", new WebAppInfo { Url = webAppUrl! }),
             });
-            await _botClient.SendTextMessageAsync(context.ChatId, "Нажмите кнопку ниже, чтобы начать игру:", replyMarkup: webAppKeyboard);
+            await _botClient.SendTextMessageAsync(context.ChatId, $"Нажмите кнопку ниже, чтобы начать игру: {webAppUrl}", replyMarkup: webAppKeyboard);
         }
 
         private async Task HandleJoinCommunityCommand(Context context)

@@ -9,7 +9,7 @@ public class GameApiClient(IHttpClientFactory httpClient) : IGameApiClient
 {
     private readonly HttpClient _httpClient = httpClient.CreateClient("GameApi");
 
-    public async Task<Player?> RegisterPlayerAsync(long telegramId, string name, string referrerId = null)
+    public async Task<Player?> RegisterPlayerAsync(long telegramId, string name, long referrerId)
     {
         var playerData = new Player
         {
@@ -22,9 +22,9 @@ public class GameApiClient(IHttpClientFactory httpClient) : IGameApiClient
         return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<Player>() : null;
     }
 
-    public async Task<string> GetPlayerId(long telegramId)
+    public async Task<long> GetPlayerId(long telegramId)
     {
         using var response = await _httpClient.GetAsync($"/api/players/{telegramId}");
-        return response.IsSuccessStatusCode ? (await response.Content.ReadFromJsonAsync<Player>())!.Id : string.Empty;
+        return response.IsSuccessStatusCode ? (await response.Content.ReadFromJsonAsync<Player>())!.TelegramId : 0;
     }
 }
