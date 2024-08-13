@@ -3,21 +3,35 @@ using GameDomain.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+using GameDomain.Models;
 
 namespace GameAPI.Services;
 
 public class CacheService : ICacheService
 {
     private readonly IDistributedCache _cache;
-    private readonly PlayerService _playerService; // Для доступа к PlayerService
+    private readonly PlayerService _playerService; 
     private const string LeaderboardKey = "players:leaderboard";
+    private const string PlayerKeyPrefix = "player:";
 
     public CacheService(IDistributedCache cache, PlayerService playerService)
     {
         _cache = cache;
         _playerService = playerService;
     }
+    public async Task<Player?> GetPlayerAsync(long id)
+    {
+        var cacheKey = $"{PlayerKeyPrefix}{id}";
+        var cachedPlayer = await _cache.GetStringAsync(cacheKey);
+        if (!string.IsNullOrEmpty(cachedPlayer))
+        {
+            return JsonSerializer.Deserialize<Player>(cachedPlayer);
+        }
 
+        var player = await _playerService.GetAsync(id);
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(player), new DistributedCacheEntryOptions { SlidingExpiration = TimeSpan.FromHours(1) });
+        return player;
+    }
     public async Task<List<KeyValuePair<long, double>>> GetTopPlayersAsync(int count = 100)
     {
         // Пытаемся получить данные из кэша

@@ -83,12 +83,11 @@ app.MapGet("/api/players", async (PlayerService playerService, ICacheService cac
     return Results.Ok(players);
 });
 
-app.MapGet("/api/players/{id:long}", async (long id, PlayerService playerService) =>
+app.MapGet("/api/players/{id:long}", async (long id, ICacheService cacheService) =>
 {
-    var player = await playerService.GetAsync(id);
-    return Results.Ok(player);
-}).WithName("GetPlayer");;
-
+    var player = await cacheService.GetPlayerAsync(id);
+    return player != null ? Results.Ok(player) : Results.NotFound();
+}).WithName("GetPlayer");
 
 app.MapPost("/api/players", async ([FromBody] Player player, PlayerService playerService, ICacheService cacheService) =>
 {

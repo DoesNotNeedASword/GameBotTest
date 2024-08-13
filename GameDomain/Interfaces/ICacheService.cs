@@ -1,4 +1,6 @@
-﻿namespace GameDomain.Interfaces;
+﻿using GameDomain.Models;
+
+namespace GameDomain.Interfaces;
 
 public interface ICacheService
 {
@@ -7,4 +9,5 @@ public interface ICacheService
     Task RemoveAsync(string key);
     Task UpdateLeaderboardAsync(long playerId, int rating);
     public Task<List<KeyValuePair<long, double>>> GetTopPlayersAsync(int count = 100);
+    Task<Player?> GetPlayerAsync(long id);
 }
