@@ -9,5 +9,13 @@
       <jdbc-url>mongodb://localhost:27018</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="@95.163.228.165" uuid="6e8dee57-8cf5-460a-a506-fe80abd777d4">
+      <driver-ref>mongo</driver-ref>
+      <synchronize>true</synchronize>
+      <configured-by-url>true</configured-by-url>
+      <jdbc-driver>com.dbschema.MongoJdbcDriver</jdbc-driver>
+      <jdbc-url>mongodb://95.163.228.165:27018</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

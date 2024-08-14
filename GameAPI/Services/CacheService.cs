@@ -71,12 +71,15 @@ public class CacheService : ICacheService
 
     public async Task UpdateLeaderboardAsync(long playerId, int rating)
     {
-        // Эта операция будет требовать считывания, обновления и записи обратно в кэш
-        var leaders = await GetTopPlayersAsync(); // Считывание текущего списка
-        var updatedLeaders = leaders.Select(p => 
-            new KeyValuePair<long, double>(p.Key, p.Key == playerId ? rating : p.Value)).ToList();
+        var leaders = await GetTopPlayersAsync();
 
-        var serializedData = JsonSerializer.Serialize(updatedLeaders);
-        await SetAsync(LeaderboardKey, serializedData, TimeSpan.FromMinutes(5)); // Перезапись обновлённых данных
+        var playerIndex = leaders.FindIndex(p => p.Key == playerId);
+        if (playerIndex >= 0)
+        {
+            var updatedPlayer = leaders[playerIndex];
+            leaders[playerIndex] = new KeyValuePair<long, double>(playerId, updatedPlayer.Value + rating);
+
+            await SetAsync(LeaderboardKey, JsonSerializer.Serialize(leaders), TimeSpan.FromMinutes(5));
+        }
     }
 }

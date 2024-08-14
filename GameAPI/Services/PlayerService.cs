@@ -55,7 +55,7 @@ public class PlayerService(IMongoDatabase database)
     public async Task<bool> UpdateRatingAsync(long telegramId, int change)
     {
         var filter = Builders<Player>.Filter.Eq(p => p.TelegramId, telegramId);
-        var player = await _players.Find(filter).FirstOrDefaultAsync();
+        var player = await (await _players.FindAsync(filter)).FirstOrDefaultAsync();
 
         if (player == null)
             return false;

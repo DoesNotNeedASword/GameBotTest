@@ -1,9 +1,12 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using GameAPI.Options;
 using GameAPI.Services;
 using GameDomain.Interfaces;
 using GameDomain.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Caching.Distributed;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
@@ -149,5 +152,40 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
     }
 });
 
+app.MapPost("/api/verify", async (HttpRequest request) =>
+{
+    try
+    {
+        var formData = await request.ReadFormAsync();
+        var initData = formData["init_data"].ToString();
+
+        var parsedData = QueryHelpers.ParseQuery(initData);
+
+        if (!parsedData.TryGetValue("hash", out var hashStr) || string.IsNullOrEmpty(hashStr))
+        {
+            return Results.Json(new { valid = false });
+        }
+
+        // Prepare the data for HMAC
+        var sortedData = parsedData.Where(p => p.Key != "hash")
+            .Select(p => $"{p.Key}={p.Value}")
+            .OrderBy(p => p)
+            .ToList();
+
+        var initDataStr = string.Join("\n", sortedData);
+
+        var secretKey = new HMACSHA256(Encoding.UTF8.GetBytes("WebAppData" + builder.Configuration["BOT_TOKEN"]));
+        var dataCheck = secretKey.ComputeHash(Encoding.UTF8.GetBytes(initDataStr));
+
+        var computedHash = BitConverter.ToString(dataCheck).Replace("-", "").ToLower();
+
+        return Results.Json(computedHash.Equals(hashStr.ToString(), StringComparison.CurrentCultureIgnoreCase) ? new { valid = true } : new { valid = false });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Verification error: {ex.Message}");
+        return Results.BadRequest("Verification failed");
+    }
+});
 
 app.Run();
