@@ -1,18 +1,40 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using GameAPI.Models;
 using GameAPI.Options;
 using GameAPI.Services;
 using GameDomain.Interfaces;
 using GameDomain.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER"),
+            ValidAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE"),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_KEY")!))
+        };
+    });
 
+builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddEndpointsApiExplorer();
@@ -60,6 +82,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseCors(options => options
@@ -84,7 +107,7 @@ app.MapGet("/api/players", async (PlayerService playerService, ICacheService cac
     var players = await playerService.GetAsync();
     await cacheService.SetAsync(cacheKey, JsonSerializer.Serialize(players));
     return Results.Ok(players);
-});
+}).RequireAuthorization();
 
 app.MapGet("/api/players/{id:long}", async (long id, ICacheService cacheService) =>
 {
@@ -188,4 +211,20 @@ app.MapPost("/api/verify", async (HttpRequest request) =>
     }
 });
 
+app.MapPost("/login", async (LoginModel login, IConfiguration config) =>
+{
+    var authService = new AuthService(config);
+
+    if (!IsValidUser(login)) return Results.Unauthorized();
+    var token = authService.GenerateToken(login.Username);
+    return Results.Ok(new { token });
+
+});
+
+bool IsValidUser(LoginModel login)
+{
+    return login is { Username: "test", Password: "password" };
+}
+
+app.Run();
 app.Run();
