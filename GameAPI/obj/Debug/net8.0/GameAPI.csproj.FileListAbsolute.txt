@@ -105,3 +105,11 @@ E:\Coding\Projects\C#\GameBotTest\GameAPI\obj\Debug\net8.0\GameAPI.genruntimecon
 E:\Coding\Projects\C#\GameBotTest\GameAPI\obj\Debug\net8.0\ref\GameAPI.dll
 E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\GameDomain.dll
 E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\GameDomain.pdb
+E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.IdentityModel.Abstractions.dll
+E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.IdentityModel.JsonWebTokens.dll
+E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.IdentityModel.Logging.dll
+E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.dll
+E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.IdentityModel.Tokens.dll
+E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\System.IdentityModel.Tokens.Jwt.dll

@@ -31,7 +31,7 @@ public class PlayerService(IMongoDatabase database)
 
         if (player.ReferrerId != 0)
         {
-            var referrerExists = await _players.Find(p => p.TelegramId == player.ReferrerId).AnyAsync();
+            var referrerExists = await (await _players.FindAsync(p => p.TelegramId == player.ReferrerId)).AnyAsync();
             if (!referrerExists)
             {
                 throw new Exception("Referral ID does not correspond to any existing player.");
