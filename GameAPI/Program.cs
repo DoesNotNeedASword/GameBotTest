@@ -128,7 +128,7 @@ app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, PlayerServ
     
     await playerService.UpdateAsync(id, playerIn);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
-    return Results.NoContent();
+    return Results.NotFound();
 });
 
 app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [FromBody] int ratingChange, PlayerService playerService, ICacheService cacheService) =>
@@ -211,7 +211,7 @@ app.MapPost("/api/verify", async (HttpRequest request) =>
     }
 });
 
-app.MapPost("/login", async (LoginModel login, IConfiguration config) =>
+app.MapPost("/api/login", async (LoginModel login, IConfiguration config) =>
 {
     var authService = new AuthService(config);
 
@@ -219,11 +219,11 @@ app.MapPost("/login", async (LoginModel login, IConfiguration config) =>
     var token = authService.GenerateToken(login.Username);
     return Results.Ok(new { token });
 
-});
+}).AllowAnonymous();
 
 bool IsValidUser(LoginModel login)
 {
-    return login is { Username: "test", Password: "password" };
+    return login is { Username: "test", Password: "test" };
 }
 
 app.Run();

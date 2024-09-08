@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GameBotTest")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d301f8e434e13ae44f8ad07f52411d8506f14591")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d327fe4192290238a876a6259fb016e0b5d8a46a")]
 [assembly: System.Reflection.AssemblyProductAttribute("GameBotTest")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GameBotTest")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
