@@ -40,6 +40,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors();
+builder.Services.AddLogging();
 
 var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
 var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"];
@@ -172,17 +173,30 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
     }
 });
 
-app.MapPost("/api/verify", async (HttpRequest request) =>
+app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) =>
 {
     try
     {
+        // Read form data
         var formData = await request.ReadFormAsync();
         var initData = formData["init_data"].ToString();
+        
+        // Log the received initData
+        logger.LogInformation("Received init_data: {initData}", initData);
 
+        // Parse the initData
         var parsedData = QueryHelpers.ParseQuery(initData);
 
+        // Log all parsed fields
+        foreach (var field in parsedData)
+        {
+            logger.LogInformation("Field: {key} = {value}", field.Key, field.Value);
+        }
+
+        // Check if hash is present
         if (!parsedData.TryGetValue("hash", out var hashStr) || string.IsNullOrEmpty(hashStr))
         {
+            logger.LogWarning("No hash found or hash is empty.");
             return Results.Json(new { valid = false });
         }
 
@@ -191,22 +205,36 @@ app.MapPost("/api/verify", async (HttpRequest request) =>
             .Select(p => $"{p.Key}={p.Value}")
             .OrderBy(p => p)
             .ToList();
-
         var initDataStr = string.Join("\n", sortedData);
 
+        // Log the initData string used for HMAC
+        logger.LogInformation("Prepared init_data string for HMAC: {initDataStr}", initDataStr);
+
+        // Generate HMAC
         var secretKey = new HMACSHA256(Encoding.UTF8.GetBytes("WebAppData" + builder.Configuration["BOT_TOKEN"]));
         var dataCheck = secretKey.ComputeHash(Encoding.UTF8.GetBytes(initDataStr));
 
+        // Generate the computed hash
         var computedHash = BitConverter.ToString(dataCheck).Replace("-", "").ToLower();
 
-        return Results.Json(computedHash.Equals(hashStr.ToString(), StringComparison.CurrentCultureIgnoreCase) ? new { valid = true } : new { valid = false });
+        // Log the computed hash and provided hash
+        logger.LogInformation("Provided hash: {hashStr}", hashStr);
+        logger.LogInformation("Computed hash: {computedHash}", computedHash);
+
+        // Validate the hash
+        var isValid = computedHash.Equals(hashStr.ToString(), StringComparison.CurrentCultureIgnoreCase);
+        logger.LogInformation("Verification result: {isValid}", isValid);
+
+        return Results.Json(new { valid = isValid });
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Verification error: {ex.Message}");
+        // Log the exception
+        logger.LogError(ex, "Verification failed with an error.");
         return Results.BadRequest("Verification failed");
     }
-     });
+});
+
 
 app.MapPost("/api/login", async (LoginModel login, IConfiguration config) =>
 {
