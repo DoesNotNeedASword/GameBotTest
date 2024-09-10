@@ -21,7 +21,7 @@ var lobbyConnections = new ConcurrentDictionary<long, List<WebSocket>>();
 var edgegapApiToken = builder.Configuration["EDGEGAP_API_TOKEN"];
 var dockerImage = builder.Configuration["DOCKER_IMAGE"];
 
-app.MapPost("/api/lobby/create", (CreateLobbyRequest request) =>
+app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
 {
     var lobbyId = request.Creator.TelegramId;
     var lobby = new Lobby(lobbyId, request.Creator, request.LobbyName, request.Password);
@@ -30,7 +30,7 @@ app.MapPost("/api/lobby/create", (CreateLobbyRequest request) =>
     return Results.Ok(lobby);
 });
 
-app.MapPost("/api/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest request) =>
+app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest request) =>
 {
     if (!lobbies.TryGetValue(lobbyId, out var lobby)) return Results.NotFound("Lobby not found");
     if (lobby.Password != null && lobby.Password != request.Password)
@@ -52,7 +52,7 @@ app.MapPost("/api/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequ
     }
 });
 
-app.MapPost("/api/lobby/{lobbyId:long}/start", async (long lobbyId) =>
+app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId) =>
 {
     if (!lobbies.TryGetValue(lobbyId, out var lobby)) return Results.NotFound("Lobby not found");
     if (lobby.Players.Count != 2) return Results.BadRequest("Lobby must have exactly 2 players to start the game");
@@ -61,7 +61,7 @@ app.MapPost("/api/lobby/{lobbyId:long}/start", async (long lobbyId) =>
     return Results.Ok("Game started");
 });
 
-app.MapGet("/api/lobbies", (string? filter = null) =>
+app.MapGet("/lobbies", (string? filter = null) =>
 {
     var result = string.IsNullOrEmpty(filter) 
         ? lobbies.Values.ToList() 
@@ -69,7 +69,7 @@ app.MapGet("/api/lobbies", (string? filter = null) =>
     return Results.Ok(result);
 });
 
-app.MapGet("/ws/lobby/{lobbyId:long}", async (long lobbyId, HttpContext context) =>
+app.MapGet("/lobby/ws/{lobbyId:long}", async (long lobbyId, HttpContext context) =>
 {
     if (!lobbies.ContainsKey(lobbyId))
     {
