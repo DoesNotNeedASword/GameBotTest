@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Web;
 using GameAPI.Models;
 using GameAPI.Options;
 using GameAPI.Services;
@@ -39,7 +41,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddCors();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigin", policy =>
+    {
+        policy.WithOrigins("https://test-telegram-app.online") // Разрешённый источник
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 builder.Services.AddLogging();
 
 var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
@@ -85,11 +95,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors(options => options
-    .WithOrigins("https://test-telegram-app.online") // Разрешить только конкретный домен
-    .AllowAnyHeader()
-    .AllowAnyMethod()
-    .AllowCredentials());
+app.UseCors("AllowSpecificOrigin");
 
 app.MapControllers();
 
@@ -173,82 +179,67 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
     }
 });
 
+
 app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) =>
 {
-    try
+    // Настройки десериализации
+    var options = new JsonSerializerOptions
     {
-        string initData;
+        PropertyNameCaseInsensitive = true
+    };
 
-        // Check the Content-Type of the request
-        if (request.ContentType != null && request.ContentType.Contains("application/json"))
-        {
-            // Read JSON data
-            using var reader = new StreamReader(request.Body);
-            var body = await reader.ReadToEndAsync();
-            var jsonData = JsonDocument.Parse(body);
-            initData = jsonData.RootElement.GetProperty("init_data").GetString();
-        }
-        else if (request.ContentType != null && request.ContentType.Contains("application/x-www-form-urlencoded"))
-        {
-            // Read form data
-            var formData = await request.ReadFormAsync();
-            initData = formData["init_data"].ToString();
-        }
-        else
-        {
-            logger.LogWarning("Unsupported content type: {ContentType}", request.ContentType);
-            return Results.BadRequest("Unsupported content type.");
-        }
+    // Чтение тела запроса и его парсинг
+    var requestBody = await new StreamReader(request.Body).ReadToEndAsync();
+    var payload = JsonSerializer.Deserialize<TgPayloadDto>(requestBody, options);
 
-        // Log the received initData
-        logger.LogInformation("Received init_data: {initData}", initData);
-
-        var parsedData = QueryHelpers.ParseQuery(initData);
-
-        // Log all parsed fields
-        foreach (var field in parsedData)
-        {
-            logger.LogInformation("Field: {key} = {value}", field.Key, field.Value);
-        }
-
-        if (!parsedData.TryGetValue("hash", out var hashStr) || string.IsNullOrEmpty(hashStr))
-        {
-            logger.LogWarning("No hash found or hash is empty.");
-            return Results.Json(new { valid = false });
-        }
-
-        // Prepare the data for HMAC
-        var sortedData = parsedData.Where(p => p.Key != "hash")
-            .Select(p => $"{p.Key}={p.Value}")
-            .OrderBy(p => p)
-            .ToList();
-        var initDataStr = string.Join("\n", sortedData);
-
-        // Log the initData string used for HMAC
-        logger.LogInformation("Prepared init_data string for HMAC: {initDataStr}", initDataStr);
-
-        // Generate HMAC
-        var secretKey = new HMACSHA256(Encoding.UTF8.GetBytes("WebAppData" + builder.Configuration["BOT_TOKEN"]));
-        var dataCheck = secretKey.ComputeHash(Encoding.UTF8.GetBytes(initDataStr));
-
-        // Generate the computed hash
-        var computedHash = BitConverter.ToString(dataCheck).Replace("-", "").ToLower();
-
-        // Log the computed hash and provided hash
-        logger.LogInformation("Provided hash: {hashStr}", hashStr);
-        logger.LogInformation("Computed hash: {computedHash}", computedHash);
-
-        // Validate the hash
-        var isValid = computedHash.Equals(hashStr.ToString(), StringComparison.CurrentCultureIgnoreCase);
-        logger.LogInformation("Verification result: {isValid}", isValid);
-
-        return Results.Json(new { valid = isValid });
+    if (payload == null || string.IsNullOrEmpty(payload.InitData))
+    {
+        logger.LogError("Не удалось распарсить тело запроса.");
+        return Results.BadRequest("Неверные данные запроса.");
     }
-    catch (Exception ex)
+
+    logger.LogInformation("Тело запроса, полученное от Telegram: {InitData}", payload.InitData);
+
+    // Парсинг строки init_data
+    var data = HttpUtility.ParseQueryString(payload.InitData);
+
+    // Сортировка данных по алфавиту в SortedDictionary
+    var dataDict = new SortedDictionary<string, string>(
+        data.AllKeys.ToDictionary(x => x!, x => data[x]!),
+        StringComparer.Ordinal);
+
+    // Удаляем поле hash для формирования строки проверки данных
+    var dataCheckString = string.Join(
+        '\n', dataDict.Where(x => x.Key != "hash")
+        .Select(x => $"{x.Key}={x.Value}"));
+
+    logger.LogInformation("dataCheckString: {DataCheckString}", dataCheckString);
+
+    // Константный ключ для генерации секретного ключа
+    var constantKey = "WebAppData";
+
+    // Получаем токен бота из конфигурации
+    var botToken = builder.Configuration["BOT_TOKEN"];
+
+    // Генерация секретного ключа с использованием HMAC-SHA-256
+    var secretKey = HMACSHA256Hash(Encoding.UTF8.GetBytes(constantKey), Encoding.UTF8.GetBytes(botToken));
+
+    // Генерация хэша на основе строки проверки данных
+    var generatedHash = HMACSHA256Hash(secretKey, Encoding.UTF8.GetBytes(dataCheckString));
+
+    // Преобразование полученного хэша от Telegram в массив байтов
+    var actualHash = Convert.FromHexString(dataDict["hash"]);
+
+    // Сравнение вычисленного и полученного хэшей
+    if (actualHash.SequenceEqual(generatedHash))
     {
-        // Log the exception
-        logger.LogError(ex, "Verification failed with an error.");
-        return Results.BadRequest("Verification failed");
+        logger.LogInformation("Данные подтверждены как подлинные.");
+        return Results.Ok("Верификация успешна.");
+    }
+    else
+    {
+        logger.LogError("Ошибка верификации.");
+        return Results.BadRequest("Ошибка верификации.");
     }
 });
 
@@ -270,3 +261,16 @@ bool IsValidUser(LoginModel login)
 }
 
 app.Run();
+byte[] HMACSHA256Hash(byte[] key, byte[] data)
+{
+    using (var hmac = new HMACSHA256(key))
+    {
+        return hmac.ComputeHash(data);
+    }
+}
+
+// DTO для тела запроса
+public class TgPayloadDto
+{
+    public string InitData { get; set; }
+}
