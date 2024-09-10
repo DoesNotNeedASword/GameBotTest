@@ -234,7 +234,7 @@ app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) 
     if (actualHash.SequenceEqual(generatedHash))
     {
         logger.LogInformation("Данные подтверждены как подлинные.");
-        return Results.Ok("Верификация успешна.");
+        return Results.Ok(new { valid = true });
     }
     else
     {
