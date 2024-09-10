@@ -84,11 +84,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.UseCors(options => options
-    .WithOrigins("http://localhost:3001", "http://localhost:3002", 
-        "http://localhost:3000", "http://localhost:8080", 
-        "http://localhost:4200", "http://localhost:5173", "http://localhost:80", "http://localhost:443")
+    .WithOrigins("https://test-telegram-app.online") // Разрешить только конкретный домен
     .AllowAnyHeader()
     .AllowAnyMethod()
     .AllowCredentials());
@@ -209,7 +206,7 @@ app.MapPost("/api/verify", async (HttpRequest request) =>
         Console.WriteLine($"Verification error: {ex.Message}");
         return Results.BadRequest("Verification failed");
     }
-});
+     });
 
 app.MapPost("/api/login", async (LoginModel login, IConfiguration config) =>
 {
