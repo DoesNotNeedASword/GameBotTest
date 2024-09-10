@@ -177,14 +177,32 @@ app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) 
 {
     try
     {
-        // Read form data
-        var formData = await request.ReadFormAsync();
-        var initData = formData["init_data"].ToString();
-        
+        string initData;
+
+        // Check the Content-Type of the request
+        if (request.ContentType != null && request.ContentType.Contains("application/json"))
+        {
+            // Read JSON data
+            using var reader = new StreamReader(request.Body);
+            var body = await reader.ReadToEndAsync();
+            var jsonData = JsonDocument.Parse(body);
+            initData = jsonData.RootElement.GetProperty("init_data").GetString();
+        }
+        else if (request.ContentType != null && request.ContentType.Contains("application/x-www-form-urlencoded"))
+        {
+            // Read form data
+            var formData = await request.ReadFormAsync();
+            initData = formData["init_data"].ToString();
+        }
+        else
+        {
+            logger.LogWarning("Unsupported content type: {ContentType}", request.ContentType);
+            return Results.BadRequest("Unsupported content type.");
+        }
+
         // Log the received initData
         logger.LogInformation("Received init_data: {initData}", initData);
 
-        // Parse the initData
         var parsedData = QueryHelpers.ParseQuery(initData);
 
         // Log all parsed fields
@@ -193,7 +211,6 @@ app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) 
             logger.LogInformation("Field: {key} = {value}", field.Key, field.Value);
         }
 
-        // Check if hash is present
         if (!parsedData.TryGetValue("hash", out var hashStr) || string.IsNullOrEmpty(hashStr))
         {
             logger.LogWarning("No hash found or hash is empty.");
@@ -234,6 +251,7 @@ app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) 
         return Results.BadRequest("Verification failed");
     }
 });
+
 
 
 app.MapPost("/api/login", async (LoginModel login, IConfiguration config) =>
