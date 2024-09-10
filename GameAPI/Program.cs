@@ -272,5 +272,6 @@ byte[] HMACSHA256Hash(byte[] key, byte[] data)
 // DTO для тела запроса
 public class TgPayloadDto
 {
+    [JsonPropertyName("init_data")]
     public string InitData { get; set; }
 }
