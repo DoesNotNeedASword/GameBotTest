@@ -9,7 +9,7 @@ public class AuthService(IConfiguration config)
 {
     public string GenerateToken(string username)
     {
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]!));
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JWT_KEY"]!));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -19,8 +19,8 @@ public class AuthService(IConfiguration config)
         };
 
         var token = new JwtSecurityToken(
-            issuer: config["Jwt:Issuer"],
-            audience: config["Jwt:Audience"],
+            issuer: config["JWT_ISSUER"],
+            audience: config["JWT_AUDIENCE"],
             claims: claims,
             expires: DateTime.Now.AddMinutes(Convert.ToDouble(config["Jwt:ExpireMinutes"])),
             signingCredentials: credentials);

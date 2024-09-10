@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameDomain", "GameDomain\Ga
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{D4F61E4F-26A1-4AB8-8749-6A6B0749BA14}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Matchmaker", "Matchmaker\Matchmaker.csproj", "{A5FC4293-0429-4E8A-9D98-F8264004202D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -37,5 +39,9 @@ Global
 		{D4F61E4F-26A1-4AB8-8749-6A6B0749BA14}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D4F61E4F-26A1-4AB8-8749-6A6B0749BA14}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D4F61E4F-26A1-4AB8-8749-6A6B0749BA14}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A5FC4293-0429-4E8A-9D98-F8264004202D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5FC4293-0429-4E8A-9D98-F8264004202D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5FC4293-0429-4E8A-9D98-F8264004202D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5FC4293-0429-4E8A-9D98-F8264004202D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
