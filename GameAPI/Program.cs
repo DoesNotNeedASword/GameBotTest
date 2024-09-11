@@ -76,6 +76,8 @@ BsonClassMap.RegisterClassMap<Player>(cm =>
 });
 
 var redisConfiguration = builder.Configuration["Redis:ConnectionString"];
+var constantKey = "WebAppData";
+var botToken = builder.Configuration["BOT_TOKEN"]!;
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = redisConfiguration;
@@ -188,8 +190,6 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
 
 app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) =>
 {
-    var constantKey = "WebAppData";
-    var botToken = builder.Configuration["BOT_TOKEN"]!;
     var options = new JsonSerializerOptions();
     
     options.PropertyNameCaseInsensitive = true;
@@ -202,7 +202,7 @@ app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) 
     }
     var data = HttpUtility.ParseQueryString(payload.InitData);
 
-    return IsValidData(data, logger, constantKey, botToken) ? Results.Ok(new { valid = true }) : Results.BadRequest();
+    return IsValidData(data, constantKey, botToken) ? Results.Ok(new { valid = true }) : Results.BadRequest();
 });
 
 
@@ -231,7 +231,7 @@ static byte[] Hmacsha256Hash(byte[] key, byte[] data)
     return hmac.ComputeHash(data);
 }
 
-static bool IsValidData(NameValueCollection nameValueCollection, ILogger<Program> logger1, string s, string botToken1)
+static bool IsValidData(NameValueCollection nameValueCollection, string key, string botToken)
 {
     var dataDict = new SortedDictionary<string, string>(
         nameValueCollection.AllKeys.ToDictionary(x => x!, x => nameValueCollection[x]!),
@@ -239,10 +239,8 @@ static bool IsValidData(NameValueCollection nameValueCollection, ILogger<Program
     var dataCheckString = string.Join(
         '\n', dataDict.Where(x => x.Key != "hash")
             .Select(x => $"{x.Key}={x.Value}"));
-
-    logger1.LogInformation("dataCheckString: {DataCheckString}", dataCheckString);
-
-    var secretKey = Hmacsha256Hash(Encoding.UTF8.GetBytes(s), Encoding.UTF8.GetBytes(botToken1));
+    
+    var secretKey = Hmacsha256Hash(Encoding.UTF8.GetBytes(key), Encoding.UTF8.GetBytes(botToken));
     var generatedHash = Hmacsha256Hash(secretKey, Encoding.UTF8.GetBytes(dataCheckString));
     var actualHash = Convert.FromHexString(dataDict["hash"]);
     
