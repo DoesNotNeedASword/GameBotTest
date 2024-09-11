@@ -15,7 +15,7 @@ public class PlayerService(IMongoDatabase database)
         return list;
     }
 
-    public async Task<Player> GetAsync(long id)
+    public async Task<Player?> GetAsync(long id)
     {
         var cursor = await _players.FindAsync(player => player.TelegramId == id);
         return await cursor.FirstOrDefaultAsync();
