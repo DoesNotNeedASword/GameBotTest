@@ -120,14 +120,14 @@ app.MapGet("/api/players/{id:long}", async (long id, ICacheService cacheService)
 {
     var player = await cacheService.GetPlayerAsync(id);
     return player != null ? Results.Ok(player) : Results.NotFound();
-}).WithName("GetPlayer");
+}).WithName("GetPlayer").AllowAnonymous();
 
 app.MapPost("/api/players", async ([FromBody] Player player, PlayerService playerService, ICacheService cacheService) =>
 {
     await playerService.CreateAsync(player);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
     return Results.CreatedAtRoute("GetPlayer", new { id = player.TelegramId }, player);
-});
+}).AllowAnonymous();
 
 app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, PlayerService playerService,
     ICacheService cacheService) =>
@@ -138,7 +138,7 @@ app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, PlayerServ
     await playerService.UpdateAsync(id, playerIn);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
     return Results.Ok();
-});
+}).AllowAnonymous();
 
 app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [FromBody] int ratingChange,
     PlayerService playerService, ICacheService cacheService) =>
@@ -154,7 +154,7 @@ app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [Fro
     {
         return Results.NotFound($"Player with Telegram ID {telegramId} not found.");
     }
-});
+}).AllowAnonymous();
 
 app.MapDelete("/api/players/{id:long}", async (long id, PlayerService playerService,
     ICacheService cacheService) =>
@@ -164,7 +164,7 @@ app.MapDelete("/api/players/{id:long}", async (long id, PlayerService playerServ
     await playerService.RemoveAsync(id);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
     return Results.NoContent();
-});
+}).AllowAnonymous();
 
 app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
 {
@@ -185,7 +185,7 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
     {
         return Results.Problem(ex.Message);
     }
-});
+}).AllowAnonymous();
 
 
 app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) =>
@@ -203,7 +203,7 @@ app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) 
     var data = HttpUtility.ParseQueryString(payload.InitData);
 
     return IsValidData(data, constantKey, botToken) ? Results.Ok(new { valid = true }) : Results.BadRequest();
-});
+}).AllowAnonymous();
 
 
 
