@@ -61,7 +61,7 @@ app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId) =>
     return Results.Ok("Game started");
 });
 
-app.MapGet("/lobbies", (string? filter = null) =>
+app.MapGet("/lobby", (string? filter = null) =>
 {
     var result = string.IsNullOrEmpty(filter) 
         ? lobbies.Values.ToList() 
