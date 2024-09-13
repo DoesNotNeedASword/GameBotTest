@@ -126,7 +126,7 @@ app.MapPost("/api/players", async ([FromBody] Player player, PlayerService playe
 {
     await playerService.CreateAsync(player);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
-    return Results.CreatedAtRoute("GetPlayer", new { id = player.TelegramId }, player);
+    return Results.Ok(player);
 }).AllowAnonymous();
 
 app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, PlayerService playerService,
