@@ -125,7 +125,6 @@ app.MapGet("/api/players/{id:long}", async (long id, ICacheService cacheService)
 app.MapPost("/api/players", async ([FromBody] Player player, PlayerService playerService, ICacheService cacheService) =>
 {
     await playerService.CreateAsync(player);
-    await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
     return Results.Ok(player);
 }).AllowAnonymous();
 

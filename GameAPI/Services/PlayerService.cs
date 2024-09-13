@@ -37,8 +37,15 @@ public class PlayerService(IMongoDatabase database)
                 throw new Exception("Referral ID does not correspond to any existing player.");
             }
         }
-        
-        await _players.InsertOneAsync(player);
+
+        try
+        {
+            await _players.InsertOneAsync(player);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
         return player;
     }
 
