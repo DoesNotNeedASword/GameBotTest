@@ -36,7 +36,7 @@ builder.Services.AddAuthentication(options =>
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_KEY")!))
         };
     });
-
+builder.Services.AddSingleton<JwtService>();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -206,21 +206,13 @@ app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) 
 }).AllowAnonymous();
 
 
-
-app.MapPost("/api/login", async (LoginModel login, IConfiguration config) =>
+app.MapPost("/api/login", async (LoginModel login, IConfiguration config, JwtService jwtService) =>
 {
-    var authService = new AuthService(config);
-
-    if (!IsValidUser(login)) return Results.Unauthorized();
-    var token = authService.GenerateToken(login.Username);
+    if (login.Username != config["SERVICE_USERNAME"] || login.Password != config["SERVICE_PASSWORD"])
+        return Results.Unauthorized();
+    var token = jwtService.GenerateToken(login.Username);
     return Results.Ok(new { token });
-
 }).AllowAnonymous();
-
-bool IsValidUser(LoginModel login)
-{
-    return login is { Username: "test", Password: "test" };
-}
 
 app.Run();
 return;

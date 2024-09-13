@@ -5,7 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace GameAPI.Services;
 
-public class AuthService(IConfiguration config)
+public class JwtService(IConfiguration config)
 {
     public string GenerateToken(string username)
     {
