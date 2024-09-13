@@ -125,6 +125,7 @@ app.MapGet("/api/players/{id:long}", async (long id, ICacheService cacheService)
 app.MapPost("/api/players", async ([FromBody] Player player, PlayerService playerService, ICacheService cacheService) =>
 {
     await playerService.CreateAsync(player);
+    await cacheService.SetAsync(cacheKey, JsonSerializer.Serialize(player)); 
     return Results.Ok(player);
 }).AllowAnonymous();
 
