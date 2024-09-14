@@ -12,8 +12,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 app.UseWebSockets();
 
 var lobbies = new ConcurrentDictionary<long, Lobby>();
@@ -151,16 +154,26 @@ async Task StartEdgegapServer(Lobby lobby)
     await NotifyLobby(lobby.Id, "Server deployed and game started");
 }
 
-async Task Receive(WebSocket socket, Action<WebSocketReceiveResult, byte[]> handleMessage)
+async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> handleMessage)
 {
     var buffer = new byte[1024 * 4];
     while (socket.State == WebSocketState.Open)
     {
-        var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-        handleMessage(result, buffer);
+        var receiveTask = socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+        var timeoutTask = Task.Delay(TimeSpan.FromMinutes(2)); // Таймаут 2 минуты
+        
+        var completedTask = await Task.WhenAny(receiveTask, timeoutTask);
+        if (completedTask == timeoutTask)
+        {
+            // Таймаут
+            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Timeout", CancellationToken.None);
+            break;
+        }
+        
+        var result = await receiveTask;
+        await handleMessage(result, buffer);
     }
 }
-
 public record CreateLobbyRequest(Player Creator, string LobbyName, string? Password);
 public record JoinLobbyRequest(Player Player, string? Password);
 
