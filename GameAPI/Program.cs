@@ -82,10 +82,10 @@ BsonClassMap.RegisterClassMap<Player>(cm =>
 var redisConfiguration = builder.Configuration["Redis:ConnectionString"];
 var constantKey = "WebAppData";
 var botToken = builder.Configuration["BOT_TOKEN"]!;
-builder.Services.AddStackExchangeRedisCache(options =>
+builder.Services.AddStackExchangeRedisCache(cacheOptions =>
 {
-    options.Configuration = redisConfiguration;
-    options.InstanceName = "SampleInstance";
+    cacheOptions.Configuration = redisConfiguration;
+    cacheOptions.InstanceName = "SampleInstance";
 });
 builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection("Redis"));
 builder.Services.AddScoped<PlayerService>();
