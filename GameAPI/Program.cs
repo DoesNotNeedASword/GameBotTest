@@ -56,7 +56,7 @@ builder.Services.AddLogging();
 var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
 var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"];
 const string cacheKey = "players";
-var options = new JsonSerializerOptions
+var jsonSerializerOptions = new JsonSerializerOptions
 {
     PropertyNameCaseInsensitive = true
 };
@@ -102,8 +102,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("AllowSpecificOrigin");
-
 app.MapControllers();
 
 
@@ -195,7 +193,7 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
 app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) =>
 {
     var requestBody = await new StreamReader(request.Body).ReadToEndAsync();
-    var payload = JsonSerializer.Deserialize<TgPayloadDto>(requestBody, options);
+    var payload = JsonSerializer.Deserialize<TgPayloadDto>(requestBody, jsonSerializerOptions);
 
     if (payload == null || string.IsNullOrEmpty(payload.InitData))
     {
