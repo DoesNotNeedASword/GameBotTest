@@ -34,27 +34,49 @@ app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
     return Results.Ok(lobby);
 });
 
+//TODO MVP1: get lobby by id, get first or default 
+//TODO MVP2: spectators, bets, avatars
+
+app.MapGet("lobby/any", () =>
+{
+    var lobby = lobbies.FirstOrDefault(l => l.Value.Players.Count == 1);
+    return Results.Ok(lobby);
+});
+
+app.MapGet("lobby/{id:long}", (long id) =>
+{
+    var lobby = lobbies.FirstOrDefault(l => l.Key == id);
+    return Results.Ok(lobby);
+});
+
 app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest request) =>
 {
-    if (!lobbies.TryGetValue(lobbyId, out var lobby)) return Results.NotFound("Lobby not found");
-    if (lobby.Password != null && lobby.Password != request.Password)
-    {
-        return Results.BadRequest("Incorrect password");
-    }
+    if (!lobbies.TryGetValue(lobbyId, out var lobby))
+        return Results.NotFound("Lobby not found");
 
-    if (lobby.Players.Count < 2)
-    {
-        lobby.Players.Add(request.Player);
-        await NotifyLobby(lobbyId, $"{request.Player.Name} has joined the lobby as a player.");
-        return Results.Ok(lobby);
-    }
-    else
-    {
-        lobby.Spectators.Add(request.Player);
-        await NotifyLobby(lobbyId, $"{request.Player.Name} has joined the lobby as a spectator.");
-        return Results.Ok(lobby);
-    }
+    if (lobby.Password != null && lobby.Password != request.Password)
+        return Results.BadRequest("Incorrect password");
+
+    if (lobby.Players.Count >= 2) return Results.BadRequest("Lobby is full. Cannot add more players.");
+    lobby.Players.Add(request.Player);
+    await NotifyLobby(lobbyId, $"{request.Player.Name} has joined the lobby as a player.");
+    return Results.Ok(lobby);
+
 });
+
+app.MapPost("/lobby/{lobbyId:long}/spectate", async (long lobbyId, JoinLobbyRequest request) =>
+{
+    if (!lobbies.TryGetValue(lobbyId, out var lobby))
+        return Results.NotFound("Lobby not found");
+
+    if (lobby.Password != null && lobby.Password != request.Password)
+        return Results.BadRequest("Incorrect password");
+
+    lobby.Spectators.Add(request.Player);
+    await NotifyLobby(lobbyId, $"{request.Player.Name} has joined the lobby as a spectator.");
+    return Results.Ok(lobby);
+});
+
 
 app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId) =>
 {
@@ -136,7 +158,8 @@ async Task StartEdgegapServer(Lobby lobby)
         version_name = "v1.0",  
         is_public_app = true,  
         ip_list = new[] { "1.2.3.4" },
-        geo_ip_list = new[] { new { } },  
+        // idc what all of these params below are doing
+        geo_ip_list = new[] { new { } },   
         telemetry_profile_uuid_list = new[] { "telemetry-profile-uuid" }, 
         env_vars = new[] { new { } },  
         skip_telemetry = true, 

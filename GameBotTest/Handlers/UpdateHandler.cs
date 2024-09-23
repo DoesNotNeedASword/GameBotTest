@@ -15,11 +15,10 @@ public class UpdateHandler(CommandParser commandParser, CommandHandler commandHa
         {
             ChatId = update.Message.Chat.Id,
             MessageText = update.Message.Text,
-            UserName = update.Message.From!.Username!,
-            UserFirstName = update.Message.From.FirstName,
-            UserLastName = update.Message.From.LastName ?? string.Empty
+            UserFirstName = update.Message.From!.FirstName,
+            UserLastName = update.Message.From.LastName ?? string.Empty,
+            UserName = update.Message.From.Username
         };
-
         var command = commandParser.Parse(context.MessageText.ToLower(), context);
         return commandHandler.HandleCommand(command, context);
     }

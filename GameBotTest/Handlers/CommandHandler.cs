@@ -67,7 +67,7 @@ namespace GameBotTest.Handlers
             {
                 ResizeKeyboard = true
             };
-            var player = await _apiClient.RegisterPlayerAsync(context.ChatId, context.UserName, context.RefId);
+            var player = await _apiClient.RegisterPlayerAsync(context.ChatId, context.UserName ?? context.UserFirstName + " " + context.UserLastName, context.RefId);
             if (player is null)
             {
                 await _botClient.SendTextMessageAsync(context.ChatId, "Internal Error", replyMarkup: startKeyboard);

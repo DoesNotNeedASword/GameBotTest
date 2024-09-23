@@ -14,8 +14,9 @@ public class CommandParser
                 _ => "unknown"
             };
         var code = GetCodeFromStartCommand(messageText);
-        context.RefId = Convert.ToInt64(code);
-        return code == string.Empty ? "noRef" : $"start";
+        if (!int.TryParse(code, out var id)) return "noRef";
+        context.RefId = id;
+        return $"start";
 
     }
     string GetCodeFromStartCommand(string startCommand)
