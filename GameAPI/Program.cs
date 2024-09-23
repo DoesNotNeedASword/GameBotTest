@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -35,7 +36,7 @@ builder.Services.AddAuthentication(options =>
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_KEY")!))
         };
     });
-
+builder.Services.AddSingleton<JwtService>();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -55,6 +56,10 @@ builder.Services.AddLogging();
 var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
 var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"];
 const string cacheKey = "players";
+var jsonSerializerOptions = new JsonSerializerOptions
+{
+    PropertyNameCaseInsensitive = true
+};
 
 builder.Services.AddSingleton<IMongoClient>(_ =>
 {
@@ -75,10 +80,12 @@ BsonClassMap.RegisterClassMap<Player>(cm =>
 });
 
 var redisConfiguration = builder.Configuration["Redis:ConnectionString"];
-builder.Services.AddStackExchangeRedisCache(options =>
+var constantKey = "WebAppData";
+var botToken = builder.Configuration["BOT_TOKEN"]!;
+builder.Services.AddStackExchangeRedisCache(cacheOptions =>
 {
-    options.Configuration = redisConfiguration;
-    options.InstanceName = "SampleInstance";
+    cacheOptions.Configuration = redisConfiguration;
+    cacheOptions.InstanceName = "SampleInstance";
 });
 builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection("Redis"));
 builder.Services.AddScoped<PlayerService>();
@@ -95,8 +102,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("AllowSpecificOrigin");
-
 app.MapControllers();
 
 
@@ -117,25 +122,28 @@ app.MapGet("/api/players/{id:long}", async (long id, ICacheService cacheService)
 {
     var player = await cacheService.GetPlayerAsync(id);
     return player != null ? Results.Ok(player) : Results.NotFound();
-}).WithName("GetPlayer");
+}).WithName("GetPlayer").AllowAnonymous();
 
 app.MapPost("/api/players", async ([FromBody] Player player, PlayerService playerService, ICacheService cacheService) =>
 {
     await playerService.CreateAsync(player);
-    await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
-    return Results.CreatedAtRoute("GetPlayer", new { id = player.TelegramId }, player);
-});
+    await cacheService.SetAsync(cacheKey, JsonSerializer.Serialize(player)); 
+    return Results.Ok(player);
+}).AllowAnonymous();
 
-app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, PlayerService playerService, ICacheService cacheService) =>
+app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, PlayerService playerService,
+    ICacheService cacheService) =>
 {
     var player = await playerService.GetAsync(id);
-    
+    if(player is null)
+        return Results.NotFound();
     await playerService.UpdateAsync(id, playerIn);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
-    return Results.NotFound();
-});
+    return Results.Ok();
+}).AllowAnonymous();
 
-app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [FromBody] int ratingChange, PlayerService playerService, ICacheService cacheService) =>
+app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [FromBody] int ratingChange,
+    PlayerService playerService, ICacheService cacheService) =>
 {
     var success = await playerService.UpdateRatingAsync(telegramId, ratingChange);
 
@@ -148,16 +156,17 @@ app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [Fro
     {
         return Results.NotFound($"Player with Telegram ID {telegramId} not found.");
     }
-});
+}).AllowAnonymous();
 
-app.MapDelete("/api/players/{id:long}", async (long id, PlayerService playerService, ICacheService cacheService) =>
+app.MapDelete("/api/players/{id:long}", async (long id, PlayerService playerService,
+    ICacheService cacheService) =>
 {
     var player = await playerService.GetAsync(id);
 
     await playerService.RemoveAsync(id);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
     return Results.NoContent();
-});
+}).RequireAuthorization();
 
 app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
 {
@@ -169,7 +178,8 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
             return Results.NotFound("No leaders found.");
         }
         
-        var playerList = leaders.Select(leader => new Player { TelegramId = leader.Key, Rating = (int)leader.Value }).ToList();
+        var playerList = leaders.Select(leader => new Player { TelegramId = leader.Key,
+            Rating = (int)leader.Value }).ToList();
 
         return Results.Ok(playerList);
     }
@@ -177,99 +187,58 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
     {
         return Results.Problem(ex.Message);
     }
-});
+}).AllowAnonymous();
 
 
 app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) =>
 {
-    // Настройки десериализации
-    var options = new JsonSerializerOptions
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
-    // Чтение тела запроса и его парсинг
     var requestBody = await new StreamReader(request.Body).ReadToEndAsync();
-    var payload = JsonSerializer.Deserialize<TgPayloadDto>(requestBody, options);
+    var payload = JsonSerializer.Deserialize<TgPayloadDto>(requestBody, jsonSerializerOptions);
 
     if (payload == null || string.IsNullOrEmpty(payload.InitData))
     {
-        logger.LogError("Не удалось распарсить тело запроса.");
-        return Results.BadRequest("Неверные данные запроса.");
+        return Results.BadRequest();
     }
-
-    logger.LogInformation("Тело запроса, полученное от Telegram: {InitData}", payload.InitData);
-
-    // Парсинг строки init_data
     var data = HttpUtility.ParseQueryString(payload.InitData);
 
-    // Сортировка данных по алфавиту в SortedDictionary
-    var dataDict = new SortedDictionary<string, string>(
-        data.AllKeys.ToDictionary(x => x!, x => data[x]!),
-        StringComparer.Ordinal);
-
-    // Удаляем поле hash для формирования строки проверки данных
-    var dataCheckString = string.Join(
-        '\n', dataDict.Where(x => x.Key != "hash")
-        .Select(x => $"{x.Key}={x.Value}"));
-
-    logger.LogInformation("dataCheckString: {DataCheckString}", dataCheckString);
-
-    // Константный ключ для генерации секретного ключа
-    var constantKey = "WebAppData";
-
-    // Получаем токен бота из конфигурации
-    var botToken = builder.Configuration["BOT_TOKEN"];
-
-    // Генерация секретного ключа с использованием HMAC-SHA-256
-    var secretKey = HMACSHA256Hash(Encoding.UTF8.GetBytes(constantKey), Encoding.UTF8.GetBytes(botToken));
-
-    // Генерация хэша на основе строки проверки данных
-    var generatedHash = HMACSHA256Hash(secretKey, Encoding.UTF8.GetBytes(dataCheckString));
-
-    // Преобразование полученного хэша от Telegram в массив байтов
-    var actualHash = Convert.FromHexString(dataDict["hash"]);
-
-    // Сравнение вычисленного и полученного хэшей
-    if (actualHash.SequenceEqual(generatedHash))
-    {
-        logger.LogInformation("Данные подтверждены как подлинные.");
-        return Results.Ok(new { valid = true });
-    }
-    else
-    {
-        logger.LogError("Ошибка верификации.");
-        return Results.BadRequest("Ошибка верификации.");
-    }
-});
-
-
-
-app.MapPost("/api/login", async (LoginModel login, IConfiguration config) =>
-{
-    var authService = new AuthService(config);
-
-    if (!IsValidUser(login)) return Results.Unauthorized();
-    var token = authService.GenerateToken(login.Username);
-    return Results.Ok(new { token });
-
+    return IsValidData(data, constantKey, botToken) ? Results.Ok(new { valid = true }) : Results.BadRequest();
 }).AllowAnonymous();
 
-bool IsValidUser(LoginModel login)
+
+app.MapPost("/api/login", async (LoginModel login, IConfiguration config, JwtService jwtService) =>
 {
-    return login is { Username: "test", Password: "test" };
-}
+    if (login.Username != config["SERVICE_USERNAME"] || login.Password != config["SERVICE_PASSWORD"])
+        return Results.Unauthorized();
+    var token = jwtService.GenerateToken(login.Username);
+    return Results.Ok(new { token });
+}).AllowAnonymous();
 
 app.Run();
-byte[] HMACSHA256Hash(byte[] key, byte[] data)
+return;
+
+static byte[] Hmacsha256Hash(byte[] key, byte[] data)
 {
-    using (var hmac = new HMACSHA256(key))
-    {
-        return hmac.ComputeHash(data);
-    }
+    using var hmac = new HMACSHA256(key);
+    return hmac.ComputeHash(data);
 }
 
-// DTO для тела запроса
+static bool IsValidData(NameValueCollection nameValueCollection, string key, string botToken)
+{
+    var dataDict = new SortedDictionary<string, string>(
+        nameValueCollection.AllKeys.ToDictionary(x => x!, x => nameValueCollection[x]!),
+        StringComparer.Ordinal);
+    var dataCheckString = string.Join(
+        '\n', dataDict.Where(x => x.Key != "hash")
+            .Select(x => $"{x.Key}={x.Value}"));
+    
+    var secretKey = Hmacsha256Hash(Encoding.UTF8.GetBytes(key), Encoding.UTF8.GetBytes(botToken));
+    var generatedHash = Hmacsha256Hash(secretKey, Encoding.UTF8.GetBytes(dataCheckString));
+    var actualHash = Convert.FromHexString(dataDict["hash"]);
+    
+    return actualHash.SequenceEqual(generatedHash);
+}
+
+
 public class TgPayloadDto
 {
     [JsonPropertyName("init_data")]

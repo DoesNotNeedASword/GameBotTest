@@ -24,6 +24,8 @@
 
     <ItemGroup>
       <Folder Include="Controllers\" />
+      <Folder Include="Models\DTO\" />
+      <Folder Include="Models\Response\" />
     </ItemGroup>
 
     <ItemGroup>

@@ -15,7 +15,7 @@ public class PlayerService(IMongoDatabase database)
         return list;
     }
 
-    public async Task<Player> GetAsync(long id)
+    public async Task<Player?> GetAsync(long id)
     {
         var cursor = await _players.FindAsync(player => player.TelegramId == id);
         return await cursor.FirstOrDefaultAsync();
@@ -47,22 +47,17 @@ public class PlayerService(IMongoDatabase database)
         await _players.ReplaceOneAsync(player => player.TelegramId == id, playerIn);
     }
     
-
     public async Task RemoveAsync(long id)
     {
         await _players.DeleteOneAsync(player => player.TelegramId == id);
     }
+    
     public async Task<bool> UpdateRatingAsync(long telegramId, int change)
     {
         var filter = Builders<Player>.Filter.Eq(p => p.TelegramId, telegramId);
-        var player = await (await _players.FindAsync(filter)).FirstOrDefaultAsync();
-
-        if (player == null)
-            return false;
-
-        player.Rating += change;
-        await _players.ReplaceOneAsync(filter, player);
-        return true;
+        var update = Builders<Player>.Update.Inc(p => p.Rating, change);
+        var result = await _players.UpdateOneAsync(filter, update);
+        return result.ModifiedCount > 0;
     }
     
     public async Task<List<Player>> GetTopPlayers(int count)
