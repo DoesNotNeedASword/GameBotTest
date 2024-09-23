@@ -6,6 +6,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json.Serialization;
 using GameDomain.Models;
+using Matchmaker.Models.Response;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
@@ -118,7 +119,7 @@ async Task NotifyLobby(long lobbyId, string message)
                     cancellationToken: new CancellationToken());
             }
         });
-
+ 
         await Task.WhenAll(tasks);
     }
 }
@@ -131,28 +132,40 @@ async Task StartEdgegapServer(Lobby lobby)
 
     var requestBody = new
     {
-        name = "game-session-" + lobby.Id,
-        regions = new[] { "na-east" },
-        configuration = new
+        app_name = dockerImage,  
+        version_name = "v1.0",  
+        is_public_app = true,  
+        ip_list = new[] { "1.2.3.4" },
+        geo_ip_list = new[] { new { } },  
+        telemetry_profile_uuid_list = new[] { "telemetry-profile-uuid" }, 
+        env_vars = new[] { new { } },  
+        skip_telemetry = true, 
+        location = new
         {
-            image = dockerImage,
-            ports = new[]
-            {
-                new
-                {
-                    container = 7777,
-                    public_port = 7777
-                }
-            }
-        }
+            latitude = 0.0, 
+            longitude = 0.0 
+        },
+        webhook_url = "https://www.webhook.com/",
+        tags = new[] { "production" },  
+        container_log_storage = new
+        {
+            enabled = true,  
+            endpoint_storage = "string"  
+        },
+        filters = new[] { new { } },  
+        ap_sort_strategy = "basic",  
+        command = "null", 
+        arguments = "null"
     };
 
-    var response = await client.PostAsJsonAsync("https://api.edgegap.com/deploy", requestBody);
+    var response = await client.PostAsJsonAsync("https://api.edgegap.com/v1/deploy", requestBody);
     response.EnsureSuccessStatusCode();
 
     var responseData = await response.Content.ReadFromJsonAsync<EdgegapDeploymentResponse>();
-    await NotifyLobby(lobby.Id, "Server deployed and game started");
+    
+    await NotifyLobby(lobby.Id, "Server deployed and game started. DNS: " + responseData?.RequestDns);
 }
+
 
 async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> handleMessage)
 {
@@ -194,13 +207,3 @@ public class Lobby
     }
 }
 
-public class EdgegapDeploymentResponse
-{
-    [JsonPropertyName("id")]
-    public string Id { get; set; }
-
-    [JsonPropertyName("status")]
-    public string Status { get; set; }
-
-    // Добавьте другие необходимые поля
-}

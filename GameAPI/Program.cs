@@ -168,7 +168,7 @@ app.MapDelete("/api/players/{id:long}", async (long id, PlayerService playerServ
     await playerService.RemoveAsync(id);
     await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
     return Results.NoContent();
-}).AllowAnonymous();
+}).RequireAuthorization();
 
 app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
 {
