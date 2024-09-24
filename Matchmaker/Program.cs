@@ -24,6 +24,7 @@ var lobbies = new ConcurrentDictionary<long, Lobby>();
 var lobbyConnections = new ConcurrentDictionary<long, List<WebSocket>>();
 var edgegapApiToken = builder.Configuration["EDGEGAP_API_TOKEN"];
 var dockerImage = builder.Configuration["DOCKER_IMAGE"];
+var edgegapVersion = builder.Configuration["VERSION"];
 
 app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
 {
@@ -82,12 +83,12 @@ app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId) =>
 {
     if (!lobbies.TryGetValue(lobbyId, out var lobby)) return Results.NotFound("Lobby not found");
     if (lobby.Players.Count != 2) return Results.BadRequest("Lobby must have exactly 2 players to start the game");
-    await StartEdgegapServer(lobby);
-    await NotifyLobby(lobbyId, "Game started");
+    var deployData = await GetEdgegapServerStatus(await StartEdgegapServer(lobby));
+    await NotifyLobby(lobbyId, $"{deployData.Dns}:{deployData.ExternalPort}");
     return Results.Ok("Game started");
 });
 
-app.MapGet("/lobby", (string? filter = null) =>
+app.MapPost("/lobby", (string? filter = null) =>
 {
     var result = string.IsNullOrEmpty(filter) 
         ? lobbies.Values.ToList() 
@@ -147,46 +148,72 @@ async Task NotifyLobby(long lobbyId, string message)
 }
 
 
-async Task StartEdgegapServer(Lobby lobby)
+async Task<string> StartEdgegapServer(Lobby lobby)
+{
+    try
+    {
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("Authorization", edgegapApiToken);
+
+        var requestBody = new
+        {
+            app_name = dockerImage,
+            app_version = edgegapVersion,
+            is_public_app = true,
+            ip_list = new[] { "1.2.3.4" },
+            // idc what all of these params below are doing
+            geo_ip_list = new[] { new { } },
+            telemetry_profile_uuid_list = new[] { "telemetry-profile-uuid" },
+            env_vars = new[] { new { } },
+            skip_telemetry = true,
+            location = new
+            {
+                latitude = 0.0,
+                longitude = 0.0
+            },
+            webhook_url = "https://www.webhook.com/",
+            tags = new[] { "production" },
+            container_log_storage = new
+            {
+                enabled = true,
+                endpoint_storage = "string"
+            },
+            filters = new[] { new { } },
+            ap_sort_strategy = "basic",
+            command = "null",
+            arguments = "null"
+        };
+
+
+
+        var response = await client.PostAsJsonAsync("https://api.edgegap.com/v1/deploy", requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var responseData = await response.Content.ReadFromJsonAsync<EdgegapCreateResponse>();
+        return responseData!.RequestDns;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message);
+        return string.Empty;
+    }
+}
+
+async Task<(string? Dns, int? ExternalPort)> GetEdgegapServerStatus(string requestId)
 {
     using var client = new HttpClient();
-    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", edgegapApiToken);
+    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(edgegapApiToken);
 
-    var requestBody = new
-    {
-        app_name = dockerImage,  
-        version_name = "v1.0",  
-        is_public_app = true,  
-        ip_list = new[] { "1.2.3.4" },
-        // idc what all of these params below are doing
-        geo_ip_list = new[] { new { } },   
-        telemetry_profile_uuid_list = new[] { "telemetry-profile-uuid" }, 
-        env_vars = new[] { new { } },  
-        skip_telemetry = true, 
-        location = new
-        {
-            latitude = 0.0, 
-            longitude = 0.0 
-        },
-        webhook_url = "https://www.webhook.com/",
-        tags = new[] { "production" },  
-        container_log_storage = new
-        {
-            enabled = true,  
-            endpoint_storage = "string"  
-        },
-        filters = new[] { new { } },  
-        ap_sort_strategy = "basic",  
-        command = "null", 
-        arguments = "null"
-    };
-
-    var response = await client.PostAsJsonAsync("https://api.edgegap.com/v1/deploy", requestBody);
+    var response = await client.GetAsync($"https://api.edgegap.com/v1/status/{requestId}");
     response.EnsureSuccessStatusCode();
 
-    var responseData = await response.Content.ReadFromJsonAsync<EdgegapDeploymentResponse>();
-    
-    await NotifyLobby(lobby.Id, "Server deployed and game started. DNS: " + responseData?.RequestDns);
+    var responseData = await response.Content.ReadFromJsonAsync<EdgegapStatusResponse>();
+
+    if (responseData?.Running != true) return (null, null);
+    var externalPort = responseData.Ports["Game Port"].External;
+    var dns = responseData.Fqdn;
+    return (dns, externalPort);
+
 }
 
 
