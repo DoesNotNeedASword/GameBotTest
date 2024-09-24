@@ -84,7 +84,7 @@ public class Port
     public string Link { get; set; }
 
     [JsonPropertyName("proxy")]
-    public int Proxy { get; set; } 
+    public int? Proxy { get; set; } 
 }
 
 public class Location
