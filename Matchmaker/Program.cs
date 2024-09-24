@@ -4,8 +4,10 @@ using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using GameDomain.Models;
+using Matchmaker;
 using Matchmaker.Models.Response;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +21,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 app.UseWebSockets();
+var options = new JsonSerializerOptions
+{
+    PropertyNameCaseInsensitive = true,
+    Converters = { new CustomDateTimeConverter() }
+};
 
 var lobbies = new ConcurrentDictionary<long, Lobby>();
 var lobbyConnections = new ConcurrentDictionary<long, List<WebSocket>>();
@@ -83,9 +90,11 @@ app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId) =>
 {
     if (!lobbies.TryGetValue(lobbyId, out var lobby)) return Results.NotFound("Lobby not found");
     if (lobby.Players.Count != 2) return Results.BadRequest("Lobby must have exactly 2 players to start the game");
-    var deployData = await GetEdgegapServerStatus(await StartEdgegapServer(lobby));
-    await NotifyLobby(lobbyId, $"{deployData.Dns}:{deployData.ExternalPort}");
-    return Results.Ok("Game started");
+
+    // Вызываем метод для попытки соединения и ожидания, пока сервер станет готов
+    var result = await StartConnectionAttempt(lobbyId, lobby);
+
+    return result != null ? Results.Ok("Game started") : Results.Problem("Failed to start game");
 });
 
 app.MapPost("/lobby", (string? filter = null) =>
@@ -153,44 +162,21 @@ async Task<string> StartEdgegapServer(Lobby lobby)
     try
     {
         using var client = new HttpClient();
-        client.DefaultRequestHeaders.Add("Authorization", edgegapApiToken);
+        client.DefaultRequestHeaders.Add("authorization", edgegapApiToken);
 
         var requestBody = new
         {
             app_name = dockerImage,
             app_version = edgegapVersion,
-            is_public_app = true,
             ip_list = new[] { "1.2.3.4" },
             // idc what all of these params below are doing
-            geo_ip_list = new[] { new { } },
-            telemetry_profile_uuid_list = new[] { "telemetry-profile-uuid" },
-            env_vars = new[] { new { } },
-            skip_telemetry = true,
-            location = new
-            {
-                latitude = 0.0,
-                longitude = 0.0
-            },
-            webhook_url = "https://www.webhook.com/",
-            tags = new[] { "production" },
-            container_log_storage = new
-            {
-                enabled = true,
-                endpoint_storage = "string"
-            },
-            filters = new[] { new { } },
-            ap_sort_strategy = "basic",
-            command = "null",
-            arguments = "null"
         };
-
-
 
         var response = await client.PostAsJsonAsync("https://api.edgegap.com/v1/deploy", requestBody);
         response.EnsureSuccessStatusCode();
 
         var responseData = await response.Content.ReadFromJsonAsync<EdgegapCreateResponse>();
-        return responseData!.RequestDns;
+        return responseData!.RequestId;
     }
     catch (Exception ex)
     {
@@ -202,18 +188,37 @@ async Task<string> StartEdgegapServer(Lobby lobby)
 async Task<(string? Dns, int? ExternalPort)> GetEdgegapServerStatus(string requestId)
 {
     using var client = new HttpClient();
-    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(edgegapApiToken);
+    client.DefaultRequestHeaders.Add("authorization", edgegapApiToken);
 
     var response = await client.GetAsync($"https://api.edgegap.com/v1/status/{requestId}");
     response.EnsureSuccessStatusCode();
-
-    var responseData = await response.Content.ReadFromJsonAsync<EdgegapStatusResponse>();
-
+    var responseData = await response.Content.ReadFromJsonAsync<EdgegapStatusResponse>(options); // mfs from edgegap don't know that iso and timestamp exist so I have to use custom converter 
     if (responseData?.Running != true) return (null, null);
     var externalPort = responseData.Ports["Game Port"].External;
     var dns = responseData.Fqdn;
     return (dns, externalPort);
 
+}
+async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby)
+{
+    var requestId = await StartEdgegapServer(lobby);
+
+    var isServerReady = false;
+    while (!isServerReady)
+    {
+        var (serverAddress, serverPort) = await GetEdgegapServerStatus(requestId);
+
+        if (serverAddress != null && serverPort != null)
+        {
+            isServerReady = true;
+            await NotifyLobby(lobbyId, $"{serverAddress}:{serverPort}");
+
+            return $"{serverAddress}:{serverPort}";
+        }
+        await Task.Delay(2000);
+    }
+
+    return null;
 }
 
 

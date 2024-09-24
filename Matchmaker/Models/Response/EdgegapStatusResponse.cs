@@ -1,6 +1,7 @@
-﻿using System.Text.Json.Serialization;
-
-namespace Matchmaker.Models.Response;
+﻿using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 public class EdgegapStatusResponse
 {
@@ -26,13 +27,13 @@ public class EdgegapStatusResponse
     public bool Running { get; set; }
 
     [JsonPropertyName("start_time")]
-    public DateTime StartTime { get; set; }
+    public DateTime? StartTime { get; set; }
 
     [JsonPropertyName("removal_time")]
-    public object? RemovalTime { get; set; }  // Может быть null
+    public DateTime? RemovalTime { get; set; }
 
     [JsonPropertyName("elapsed_time")]
-    public int ElapsedTime { get; set; }
+    public int? ElapsedTime { get; set; }
 
     [JsonPropertyName("error")]
     public bool Error { get; set; }
@@ -44,25 +45,25 @@ public class EdgegapStatusResponse
     public bool WhitelistingActive { get; set; }
 
     [JsonPropertyName("ports")]
-    public Dictionary<string, PortInfo> Ports { get; set; }
-
-    [JsonPropertyName("location")]
-    public LocationInfo Location { get; set; }
+    public Dictionary<string, Port> Ports { get; set; }
 
     [JsonPropertyName("command")]
-    public object? Command { get; set; }  // Может быть null
+    public string Command { get; set; }
 
     [JsonPropertyName("arguments")]
-    public object? Arguments { get; set; }  // Может быть null
+    public string Arguments { get; set; }
 
     [JsonPropertyName("last_status")]
     public string LastStatus { get; set; }
 
     [JsonPropertyName("last_status_label")]
     public string LastStatusLabel { get; set; }
+
+    [JsonPropertyName("location")]
+    public Location Location { get; set; }
 }
 
-public class PortInfo
+public class Port
 {
     [JsonPropertyName("external")]
     public int External { get; set; }
@@ -83,10 +84,10 @@ public class PortInfo
     public string Link { get; set; }
 
     [JsonPropertyName("proxy")]
-    public int Proxy { get; set; }
+    public int Proxy { get; set; } 
 }
 
-public class LocationInfo
+public class Location
 {
     [JsonPropertyName("city")]
     public string City { get; set; }
