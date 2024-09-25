@@ -13,12 +13,18 @@ This API allows clients to create, join, spectate, and manage game lobbies. It a
 - **Request Body:**
   ```json
   {
-    "Creator": {
-      "TelegramId": long,
-      "Name": "string"
-    },
-    "LobbyName": "string",
-    "Password": "string"
+  "creator": {
+    "telegramId": 123,
+    "name": "string",
+    "level": 100,
+    "score": 2147483647,
+    "rating": 2147483647,
+    "softCurrency": 2147483647,
+    "hardCurrency": 2147483647,
+    "referrerId": 1
+  },
+  "lobbyName": "string",
+  "password": "string"
   }
 
 -   **Response:**
@@ -33,11 +39,17 @@ This API allows clients to create, join, spectate, and manage game lobbies. It a
 
     ```json
     {
-      "Player": {
-        "TelegramId": long,
-        "Name": "string"
-      },
-      "Password": "string"
+    "player": {
+    "telegramId": 124,
+    "name": "Player1",
+    "level": 10,
+    "score": 5000,
+    "rating": 1500,
+    "softCurrency": 1000,
+    "hardCurrency": 500,
+    "referrerId": 987654321
+       },
+    "password": "string"
     }
 
 -   **Response:**
@@ -53,12 +65,19 @@ This API allows clients to create, join, spectate, and manage game lobbies. It a
 -   **Request Body:**
      ```json
     {
-      "Player": {
-        "TelegramId": long,
-        "Name": "string"
-      },
-      "Password": "string"
+    "player": {
+    "telegramId": 124,
+    "name": "Player1",
+    "level": 10,
+    "score": 5000,
+    "rating": 1500,
+    "softCurrency": 1000,
+    "hardCurrency": 500,
+    "referrerId": 987654321
+    },
+    "password": "string"
     }
+
 
 -   **Response:**
     -   `200 OK` --- Returns the updated lobby details.
