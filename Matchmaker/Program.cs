@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
-using System.Security.Cryptography;
 using System.Text;
 using GameDomain.Models;
 using Matchmaker.Interfaces;
@@ -20,9 +19,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 app.UseWebSockets();
+// TODO: make id with redis
 const int baseLobbyId = 1000000000; // just a cool number for id
 var lobbies = new ConcurrentDictionary<long, Lobby>();
-var lobbyConnections = new ConcurrentDictionary<long, List<WebSocket>>();
+var lobbyConnections = new ConcurrentDictionary<long, ConcurrentDictionary<long, WebSocket>>(); // that's sucks...
 
 
 app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
@@ -117,10 +117,10 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request) =>
             return Results.BadRequest("Player not found in the lobby");
         }
     }
-    if (!lobbyConnections.TryGetValue(request.LobbyId, out var sockets)) return Results.Ok("Player left the lobby");
-    var socket = sockets.FirstOrDefault(s => s.State == WebSocketState.Open); 
-    if (socket is null) return Results.Ok("Player left the lobby");
-    sockets.Remove(socket);
+
+    if (!lobbyConnections.TryGetValue(request.LobbyId, out var playerConnections) ||
+        !playerConnections.TryGetValue(request.PlayerId, out var socket)) return Results.Ok("Player left the lobby");
+    playerConnections.Remove(request.PlayerId, out _); 
     await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Player left", CancellationToken.None);
 
     return Results.Ok("Player left the lobby");
@@ -134,7 +134,7 @@ app.MapPost("/lobby", (string? filter = null) =>
     return Results.Ok(result);
 });
 
-app.MapGet("/lobby/ws/{lobbyId:long}", async (long lobbyId, HttpContext context) =>
+app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long playerId, HttpContext context) =>
 {
     if (!lobbies.ContainsKey(lobbyId))
     {
@@ -145,12 +145,14 @@ app.MapGet("/lobby/ws/{lobbyId:long}", async (long lobbyId, HttpContext context)
     if (context.WebSockets.IsWebSocketRequest)
     {
         var socket = await context.WebSockets.AcceptWebSocketAsync();
-        lobbyConnections[lobbyId].Add(socket);
+        var playerConnections = lobbyConnections.GetOrAdd(lobbyId, _ => new ConcurrentDictionary<long, WebSocket>());
+        playerConnections[playerId] = socket;
 
         await Receive(socket, async (result, _) =>
         {
             if (result.MessageType != WebSocketMessageType.Close) return;
-            lobbyConnections[lobbyId].Remove(socket);
+
+            playerConnections.Remove(playerId, out var _);  
             await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by the WebSocket client", CancellationToken.None);
         });
     }
@@ -165,10 +167,10 @@ return;
 
 async Task NotifyLobby(long lobbyId, string message)
 {
-    if (lobbyConnections.TryGetValue(lobbyId, out var sockets))
+    if (lobbyConnections.TryGetValue(lobbyId, out var playerConnections)) // playerConnections - это ConcurrentDictionary<long, WebSocket>
     {
         var buffer = Encoding.UTF8.GetBytes(message);
-        var tasks = sockets.Select(async socket =>
+        var tasks = playerConnections.Values.Select(async socket =>
         {
             try
             {
@@ -176,14 +178,14 @@ async Task NotifyLobby(long lobbyId, string message)
             }
             catch (WebSocketException)
             {
-                await socket.CloseAsync(WebSocketCloseStatus.InternalServerError, "Error while NotifyLobby",
-                    cancellationToken: new CancellationToken());
+                await socket.CloseAsync(WebSocketCloseStatus.InternalServerError, "Error while NotifyLobby", CancellationToken.None);
             }
         });
- 
+
         await Task.WhenAll(tasks);
     }
 }
+
 
 async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby, IEdgegapService edgegapService)
 {
