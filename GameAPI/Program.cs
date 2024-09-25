@@ -11,7 +11,6 @@ using GameDomain.Interfaces;
 using GameDomain.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson.Serialization;
@@ -190,7 +189,7 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
 }).AllowAnonymous();
 
 
-app.MapPost("/api/verify", async (HttpRequest request, ILogger<Program> logger) =>
+app.MapPost("/api/verify", async (HttpRequest request) =>
 {
     var requestBody = await new StreamReader(request.Body).ReadToEndAsync();
     var payload = JsonSerializer.Deserialize<TgPayloadDto>(requestBody, jsonSerializerOptions);
@@ -242,5 +241,5 @@ static bool IsValidData(NameValueCollection nameValueCollection, string key, str
 public class TgPayloadDto
 {
     [JsonPropertyName("init_data")]
-    public string InitData { get; set; }
+    public string? InitData { get; init; }
 }

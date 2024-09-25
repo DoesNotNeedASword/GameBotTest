@@ -1,18 +1,17 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
-using System.Net.Http.Headers;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using GameDomain.Models;
-using Matchmaker;
-using Matchmaker.Models.Response;
+using Matchmaker.Interfaces;
+using Matchmaker.Models.Records;
+using Matchmaker.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<IEdgegapService, EdgegapService>();
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
@@ -21,21 +20,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 app.UseWebSockets();
-var options = new JsonSerializerOptions
-{
-    PropertyNameCaseInsensitive = true,
-    Converters = { new CustomDateTimeConverter() }
-};
 
 var lobbies = new ConcurrentDictionary<long, Lobby>();
 var lobbyConnections = new ConcurrentDictionary<long, List<WebSocket>>();
-var edgegapApiToken = builder.Configuration["EDGEGAP_API_TOKEN"];
-var dockerImage = builder.Configuration["DOCKER_IMAGE"];
-var edgegapVersion = builder.Configuration["VERSION"];
+
 
 app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
 {
-    var lobbyId = request.Creator.TelegramId;
+    var lobbyId = GenerateLobbyId(); // Генерация уникального ID для лобби
     var lobby = new Lobby(lobbyId, request.Creator, request.LobbyName, request.Password);
     lobbies[lobbyId] = lobby;
     lobbyConnections[lobbyId] = [];
@@ -54,6 +46,12 @@ app.MapGet("lobby/any", () =>
 app.MapGet("lobby/{id:long}", (long id) =>
 {
     var lobby = lobbies.FirstOrDefault(l => l.Key == id);
+    return Results.Ok(lobby.Value);
+});
+
+app.MapGet("lobby/creator/{id:long}", (long id) =>
+{
+    var lobby = lobbies.FirstOrDefault(l => l.Value.Players.FirstOrDefault()!.TelegramId == id);
     return Results.Ok(lobby.Value);
 });
 
@@ -85,15 +83,47 @@ app.MapPost("/lobby/{lobbyId:long}/spectate", async (long lobbyId, JoinLobbyRequ
     return Results.Ok(lobby);
 });
 
-
-app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId) =>
+app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId, IEdgegapService edgegapService) =>
 {
     if (!lobbies.TryGetValue(lobbyId, out var lobby)) return Results.NotFound("Lobby not found");
     if (lobby.Players.Count != 2) return Results.BadRequest("Lobby must have exactly 2 players to start the game");
 
-    var result = await StartConnectionAttempt(lobbyId, lobby);
+    var result = await StartConnectionAttempt(lobbyId, lobby, edgegapService);
 
     return result != null ? Results.Ok("Game started") : Results.Problem("Failed to start game");
+});
+
+app.MapPost("/lobby/leave", async (LeaveLobbyRequest request) =>
+{
+    if (!lobbies.TryGetValue(request.LobbyId, out var lobby)) 
+        return Results.NotFound("Lobby not found");
+
+    var player = lobby.Players.FirstOrDefault(p => p.TelegramId == request.PlayerId);
+    if (player != null)
+    {
+        lobby.Players.Remove(player);
+        await NotifyLobby(request.LobbyId, $"{request.PlayerId} has left the lobby as a player.");
+    }
+    else
+    {
+        var spectator = lobby.Spectators.FirstOrDefault(p => p.TelegramId == request.PlayerId);
+        if (spectator != null)
+        {
+            lobby.Spectators.Remove(spectator);
+            await NotifyLobby(request.LobbyId, $"{request.PlayerId} has left the lobby as a spectator.");
+        }
+        else
+        {
+            return Results.BadRequest("Player not found in the lobby");
+        }
+    }
+    if (!lobbyConnections.TryGetValue(request.LobbyId, out var sockets)) return Results.Ok("Player left the lobby");
+    var socket = sockets.FirstOrDefault(s => s.State == WebSocketState.Open); 
+    if (socket is null) return Results.Ok("Player left the lobby");
+    sockets.Remove(socket);
+    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Player left", CancellationToken.None);
+
+    return Results.Ok("Player left the lobby");
 });
 
 app.MapPost("/lobby", (string? filter = null) =>
@@ -117,7 +147,7 @@ app.MapGet("/lobby/ws/{lobbyId:long}", async (long lobbyId, HttpContext context)
         var socket = await context.WebSockets.AcceptWebSocketAsync();
         lobbyConnections[lobbyId].Add(socket);
 
-        await Receive(socket, async (result, buffer) =>
+        await Receive(socket, async (result, _) =>
         {
             if (result.MessageType != WebSocketMessageType.Close) return;
             lobbyConnections[lobbyId].Remove(socket);
@@ -155,71 +185,32 @@ async Task NotifyLobby(long lobbyId, string message)
     }
 }
 
-
-async Task<string> StartEdgegapServer(Lobby lobby)
+async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby, IEdgegapService edgegapService)
 {
-    try
+    var requestId = await edgegapService.StartEdgegapServer(lobby);
+    if (requestId is null) return null;
+    for (var attempt = 0; attempt < 10; attempt++) 
     {
-        using var client = new HttpClient();
-        client.DefaultRequestHeaders.Add("authorization", edgegapApiToken);
-
-        var requestBody = new
-        {
-            app_name = dockerImage,
-            app_version = edgegapVersion,
-            ip_list = new[] { "1.2.3.4" },
-            // idc what all of these params below are doing
-        };
-
-        var response = await client.PostAsJsonAsync("https://api.edgegap.com/v1/deploy", requestBody);
-        response.EnsureSuccessStatusCode();
-
-        var responseData = await response.Content.ReadFromJsonAsync<EdgegapCreateResponse>();
-        return responseData!.RequestId;
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine(ex.Message);
-        return string.Empty;
-    }
-}
-
-async Task<(string? Dns, int? ExternalPort)> GetEdgegapServerStatus(string requestId)
-{
-    using var client = new HttpClient();
-    client.DefaultRequestHeaders.Add("authorization", edgegapApiToken);
-
-    var response = await client.GetAsync($"https://api.edgegap.com/v1/status/{requestId}");
-    response.EnsureSuccessStatusCode();
-    var responseData = await response.Content.ReadFromJsonAsync<EdgegapStatusResponse>(options); // mfs from edgegap don't know that iso and timestamp exist so I have to use custom converter 
-    if (responseData?.Running != true) return (null, null);
-    var externalPort = responseData.Ports["Game Port"].External;
-    var dns = responseData.Fqdn;
-    return (dns, externalPort);
-
-}
-async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby)
-{
-    var requestId = await StartEdgegapServer(lobby);
-
-    var isServerReady = false;
-    while (!isServerReady)
-    {
-        var (serverAddress, serverPort) = await GetEdgegapServerStatus(requestId);
+        var (serverAddress, serverPort) = await edgegapService.GetEdgegapServerStatus(requestId);
 
         if (serverAddress != null && serverPort != null)
         {
-            isServerReady = true;
             await NotifyLobby(lobbyId, $"{serverAddress}:{serverPort}");
-
             return $"{serverAddress}:{serverPort}";
         }
-        await Task.Delay(2000);
-    }
 
+        await Task.Delay(1000);
+    }
     return null;
 }
 
+long GenerateLobbyId()
+{
+    using var rng = RandomNumberGenerator.Create();
+    var randomNumber = new byte[8]; // 8 байт = 64 бита, для long
+    rng.GetBytes(randomNumber);
+    return BitConverter.ToInt64(randomNumber, 0) & long.MaxValue; // Убираем отрицательные значения
+}
 
 async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> handleMessage)
 {
@@ -232,7 +223,6 @@ async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> 
         var completedTask = await Task.WhenAny(receiveTask, timeoutTask);
         if (completedTask == timeoutTask)
         {
-            // Таймаут
             await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Timeout", CancellationToken.None);
             break;
         }
@@ -241,23 +231,3 @@ async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> 
         await handleMessage(result, buffer);
     }
 }
-public record CreateLobbyRequest(Player Creator, string LobbyName, string? Password);
-public record JoinLobbyRequest(Player Player, string? Password);
-
-public class Lobby
-{
-    public long Id { get; }
-    public string LobbyName { get; }
-    public string? Password { get; }
-    public List<Player> Players { get; } = new();
-    public List<Player> Spectators { get; } = new();
-
-    public Lobby(long id, Player creator, string lobbyName, string? password)
-    {
-        Id = id;
-        LobbyName = lobbyName;
-        Password = password;
-        Players.Add(creator);
-    }
-}
-
