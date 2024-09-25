@@ -52,8 +52,8 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddLogging();
 
-var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
-var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"];
+var mongoConnectionString = builder.Configuration["MONGODB_CONNECTIONSTRING"];
+var mongoDatabaseName = builder.Configuration["MONGODB_DATABASENAME"];
 const string cacheKey = "players";
 var jsonSerializerOptions = new JsonSerializerOptions
 {
@@ -78,7 +78,7 @@ BsonClassMap.RegisterClassMap<Player>(cm =>
     cm.SetIgnoreExtraElements(true);  
 });
 
-var redisConfiguration = builder.Configuration["Redis:ConnectionString"];
+var redisConfiguration = builder.Configuration["REDIS_CONNECTIONSTRING"];
 var constantKey = "WebAppData";
 var botToken = builder.Configuration["BOT_TOKEN"]!;
 builder.Services.AddStackExchangeRedisCache(cacheOptions =>

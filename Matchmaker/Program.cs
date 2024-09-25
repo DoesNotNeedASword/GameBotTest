@@ -20,7 +20,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 app.UseWebSockets();
-
+const int baseLobbyId = 1000000000; // just a cool number for id
 var lobbies = new ConcurrentDictionary<long, Lobby>();
 var lobbyConnections = new ConcurrentDictionary<long, List<WebSocket>>();
 
@@ -206,10 +206,7 @@ async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby, IEdgegapSe
 
 long GenerateLobbyId()
 {
-    using var rng = RandomNumberGenerator.Create();
-    var randomNumber = new byte[8]; // 8 байт = 64 бита, для long
-    rng.GetBytes(randomNumber);
-    return BitConverter.ToInt64(randomNumber, 0) & long.MaxValue; // Убираем отрицательные значения
+    return !lobbies.IsEmpty ? lobbies.Last().Key + 1 : baseLobbyId;
 }
 
 async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> handleMessage)
