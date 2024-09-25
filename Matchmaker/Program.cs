@@ -48,13 +48,13 @@ app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
 app.MapGet("lobby/any", () =>
 {
     var lobby = lobbies.FirstOrDefault(l => l.Value.Players.Count == 1);
-    return Results.Ok(lobby);
+    return Results.Ok(lobby.Value);
 });
 
 app.MapGet("lobby/{id:long}", (long id) =>
 {
     var lobby = lobbies.FirstOrDefault(l => l.Key == id);
-    return Results.Ok(lobby);
+    return Results.Ok(lobby.Value);
 });
 
 app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest request) =>
@@ -91,7 +91,6 @@ app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId) =>
     if (!lobbies.TryGetValue(lobbyId, out var lobby)) return Results.NotFound("Lobby not found");
     if (lobby.Players.Count != 2) return Results.BadRequest("Lobby must have exactly 2 players to start the game");
 
-    // Вызываем метод для попытки соединения и ожидания, пока сервер станет готов
     var result = await StartConnectionAttempt(lobbyId, lobby);
 
     return result != null ? Results.Ok("Game started") : Results.Problem("Failed to start game");
