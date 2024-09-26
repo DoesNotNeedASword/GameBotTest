@@ -71,4 +71,9 @@ public class EdgegapService : IEdgegapService
             return (null, null);
         }
     }
+    public async Task<bool> StopDeployment(string requestId)
+    {
+        var response = await _httpClient.DeleteAsync($"https://api.edgegap.com/v1/stop/{requestId}");
+        return response.IsSuccessStatusCode;
+    }
 }

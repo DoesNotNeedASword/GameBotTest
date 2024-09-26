@@ -4,6 +4,7 @@ using System.Text;
 using GameDomain.Models;
 using Matchmaker.Interfaces;
 using Matchmaker.Models.Records;
+using Matchmaker.Models.Requests;
 using Matchmaker.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,7 @@ app.UseWebSockets();
 // TODO: make id with redis
 const int baseLobbyId = 1000000000; // just a cool number for id
 var lobbies = new ConcurrentDictionary<long, Lobby>();
+// TODO: PLEASE LET ME USE RMQ!!!!!!!
 var lobbyConnections = new ConcurrentDictionary<long, ConcurrentDictionary<long, WebSocket>>(); // that's sucks...
 
 
@@ -34,7 +36,6 @@ app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
     return Results.Ok(lobby);
 });
 
-//TODO MVP1: get lobby by id, get first or default 
 //TODO MVP2: spectators, bets, avatars
 
 app.MapGet("lobby/any", () =>
@@ -118,13 +119,20 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request) =>
         }
     }
 
+    if (lobby.Players.Count == 0 && lobby.Spectators.Count == 0)
+    {
+        await CloseLobby(request.LobbyId);
+        return Results.Ok("Last player left the lobby, lobby is closed.");
+    }
+
     if (!lobbyConnections.TryGetValue(request.LobbyId, out var playerConnections) ||
         !playerConnections.TryGetValue(request.PlayerId, out var socket)) return Results.Ok("Player left the lobby");
-    playerConnections.Remove(request.PlayerId, out _); 
+    playerConnections.Remove(request.PlayerId, out _);
     await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Player left", CancellationToken.None);
 
     return Results.Ok("Player left the lobby");
 });
+
 
 app.MapPost("/lobby", (string? filter = null) =>
 {
@@ -162,12 +170,52 @@ app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long
     }
 });
 
+app.MapPost("/lobby/close/{lobbyId:long}", async (long lobbyId) =>
+{
+    await CloseLobby(lobbyId);
+    return Results.Ok("Lobby closed successfully.");
+});
+
+
+
+app.MapPost("/lobby/closeGame", async (CloseGameRequest request, IEdgegapService edgegapService, HttpClient httpClient) =>
+{
+    var result = await edgegapService.StopDeployment(request.RequestId);
+
+ 
+
+    var winnerResponse = await httpClient.PutAsJsonAsync(
+        $"http://gameapi:8080/api/players/{request.Winner}/rating", 
+        1
+    );
+
+    if (!winnerResponse.IsSuccessStatusCode)
+    {
+        return Results.Problem($"Failed to update rating for the winner with Telegram ID {request.Winner}.");
+    }
+
+    foreach (var loser in request.Losers)
+    {
+        var loserResponse = await httpClient.PutAsJsonAsync(
+            $"http://gameapi:8080/api/players/{loser}/rating", 
+            -1
+        );
+
+        if (!loserResponse.IsSuccessStatusCode)
+        {
+            return Results.Problem($"Failed to update rating for player with Telegram ID {loser}.");
+        }
+    }
+
+    return Results.Ok(new { Winner = request.Winner, Losers = request.Losers });
+});
+
 app.Run();
 return;
 
 async Task NotifyLobby(long lobbyId, string message)
 {
-    if (lobbyConnections.TryGetValue(lobbyId, out var playerConnections)) // playerConnections - это ConcurrentDictionary<long, WebSocket>
+    if (lobbyConnections.TryGetValue(lobbyId, out var playerConnections)) // playerConnections - ConcurrentDictionary<long, WebSocket>. That's bad...
     {
         var buffer = Encoding.UTF8.GetBytes(message);
         var tasks = playerConnections.Values.Select(async socket =>
@@ -228,5 +276,21 @@ async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> 
         
         var result = await receiveTask;
         await handleMessage(result, buffer);
+    }
+}
+
+async Task CloseLobby(long lobbyId)
+{
+    if (lobbies.TryRemove(lobbyId, out _))
+    {
+        await NotifyLobby(lobbyId, "The lobby has been closed.");
+        
+        if (lobbyConnections.TryRemove(lobbyId, out var playerConnections))
+        {
+            foreach (var connection in playerConnections.Values)
+            {
+                await connection.CloseAsync(WebSocketCloseStatus.NormalClosure, "Lobby closed", CancellationToken.None);
+            }
+        }
     }
 }
