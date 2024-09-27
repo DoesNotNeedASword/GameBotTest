@@ -3,9 +3,11 @@ using System.Net.WebSockets;
 using System.Text;
 using GameDomain.Models;
 using Matchmaker.Interfaces;
+using Matchmaker.Models.Dto;
 using Matchmaker.Models.Records;
 using Matchmaker.Models.Requests;
 using Matchmaker.Services;
+using Newtonsoft.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
@@ -25,6 +27,7 @@ const int baseLobbyId = 1000000000; // just a cool number for id
 var lobbies = new ConcurrentDictionary<long, Lobby>();
 // TODO: PLEASE LET ME USE RMQ!!!!!!!
 var lobbyConnections = new ConcurrentDictionary<long, ConcurrentDictionary<long, WebSocket>>(); // that's sucks...
+const int maxPlayers = 2;
 
 
 app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
@@ -64,12 +67,14 @@ app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest 
     if (lobby.Password != null && lobby.Password != request.Password)
         return Results.BadRequest("Incorrect password");
 
-    if (lobby.Players.Count >= 2) return Results.BadRequest("Lobby is full. Cannot add more players.");
+    if (lobby.Players.Count >= maxPlayers) return Results.BadRequest("Lobby is full. Cannot add more players.");
+    
     lobby.Players.Add(request.Player);
-    await NotifyLobby(lobbyId, $"{request.Player.Name} has joined the lobby as a player.");
+    
+    await NotifyLobby(lobbyId, LobbyNotificationStatus.PlayerConnected, $"{request.Player.Name} has joined the lobby as a player.");
     return Results.Ok(lobby);
-
 });
+
 
 app.MapPost("/lobby/{lobbyId:long}/spectate", async (long lobbyId, JoinLobbyRequest request) =>
 {
@@ -80,18 +85,27 @@ app.MapPost("/lobby/{lobbyId:long}/spectate", async (long lobbyId, JoinLobbyRequ
         return Results.BadRequest("Incorrect password");
 
     lobby.Spectators.Add(request.Player);
-    await NotifyLobby(lobbyId, $"{request.Player.Name} has joined the lobby as a spectator.");
+    
+    await NotifyLobby(lobbyId, LobbyNotificationStatus.PlayerConnected, $"{request.Player.Name} has joined the lobby as a spectator.");
     return Results.Ok(lobby);
 });
 
+
 app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId, IEdgegapService edgegapService) =>
 {
-    if (!lobbies.TryGetValue(lobbyId, out var lobby)) return Results.NotFound("Lobby not found");
-    if (lobby.Players.Count != 2) return Results.BadRequest("Lobby must have exactly 2 players to start the game");
+    if (!lobbies.TryGetValue(lobbyId, out var lobby)) 
+        return Results.NotFound("Lobby not found");
+    
+    if (lobby.Players.Count != 2) 
+        return Results.BadRequest("Lobby must have exactly 2 players to start the game");
 
     var result = await StartConnectionAttempt(lobbyId, lobby, edgegapService);
 
-    return result != null ? Results.Ok("Game started") : Results.Problem("Failed to start game");
+    if (result != null)
+        return Results.Ok("Game started");
+
+    await NotifyLobby(lobbyId, LobbyNotificationStatus.WebSocketError, "Failed to start the game.");
+    return Results.Problem("Failed to start game");
 });
 
 app.MapPost("/lobby/leave", async (LeaveLobbyRequest request) =>
@@ -103,7 +117,7 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request) =>
     if (player != null)
     {
         lobby.Players.Remove(player);
-        await NotifyLobby(request.LobbyId, $"{request.PlayerId} has left the lobby as a player.");
+        await NotifyLobby(request.LobbyId, LobbyNotificationStatus.PlayerDisconnected, $"{player.Name} has left the lobby as a player.");
     }
     else
     {
@@ -111,7 +125,7 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request) =>
         if (spectator != null)
         {
             lobby.Spectators.Remove(spectator);
-            await NotifyLobby(request.LobbyId, $"{request.PlayerId} has left the lobby as a spectator.");
+            await NotifyLobby(request.LobbyId, LobbyNotificationStatus.PlayerDisconnected, $"{spectator.Name} has left the lobby as a spectator.");
         }
         else
         {
@@ -127,11 +141,13 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request) =>
 
     if (!lobbyConnections.TryGetValue(request.LobbyId, out var playerConnections) ||
         !playerConnections.TryGetValue(request.PlayerId, out var socket)) return Results.Ok("Player left the lobby");
+    
     playerConnections.Remove(request.PlayerId, out _);
     await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Player left", CancellationToken.None);
 
     return Results.Ok("Player left the lobby");
 });
+
 
 
 app.MapPost("/lobby", (string? filter = null) =>
@@ -147,6 +163,8 @@ app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long
     if (!lobbies.ContainsKey(lobbyId))
     {
         context.Response.StatusCode = 404;
+        var notificationDto = new LobbyNotificationDto((int)LobbyNotificationStatus.LobbyNotFound, "Lobby not found");
+        await context.Response.WriteAsJsonAsync(notificationDto);
         return;
     }
 
@@ -154,21 +172,42 @@ app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long
     {
         var socket = await context.WebSockets.AcceptWebSocketAsync();
         var playerConnections = lobbyConnections.GetOrAdd(lobbyId, _ => new ConcurrentDictionary<long, WebSocket>());
+
+        // Добавляем игрока в список подключений
         playerConnections[playerId] = socket;
+
+        // Уведомляем о подключении
+        var connectionNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerConnected, $"Player {playerId} connected to Lobby {lobbyId}");
+        var connectionMessage = JsonConvert.SerializeObject(connectionNotification);
+        var buffer = Encoding.UTF8.GetBytes(connectionMessage);
+        await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
 
         await Receive(socket, async (result, _) =>
         {
-            if (result.MessageType != WebSocketMessageType.Close) return;
+            // Если клиент инициировал закрытие соединения
+            if (result.MessageType == WebSocketMessageType.Close)
+            {
+                playerConnections.Remove(playerId, out var _);
 
-            playerConnections.Remove(playerId, out var _);  
-            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by the WebSocket client", CancellationToken.None);
+                // Уведомляем о разрыве соединения
+                var disconnectionNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerDisconnected, $"Player {playerId} disconnected from Lobby {lobbyId}");
+                var disconnectionMessage = JsonConvert.SerializeObject(disconnectionNotification);
+                var disconnectionBuffer = Encoding.UTF8.GetBytes(disconnectionMessage);
+                await socket.SendAsync(new ArraySegment<byte>(disconnectionBuffer), WebSocketMessageType.Text, true, CancellationToken.None);
+
+                // Закрываем WebSocket
+                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by the WebSocket client", CancellationToken.None);
+            }
         });
     }
     else
     {
         context.Response.StatusCode = 400;
+        var notificationDto = new LobbyNotificationDto((int)LobbyNotificationStatus.InvalidRequest, "Invalid WebSocket request");
+        await context.Response.WriteAsJsonAsync(notificationDto);
     }
 });
+
 
 app.MapPost("/lobby/close/{lobbyId:long}", async (long lobbyId) =>
 {
@@ -213,26 +252,40 @@ app.MapPost("/lobby/closeGame", async (CloseGameRequest request, IEdgegapService
 app.Run();
 return;
 
-async Task NotifyLobby(long lobbyId, string message)
+async Task NotifyLobby(long lobbyId, LobbyNotificationStatus notificationStatus, string additionalMessage = "")
 {
-    if (lobbyConnections.TryGetValue(lobbyId, out var playerConnections)) // playerConnections - ConcurrentDictionary<long, WebSocket>. That's bad...
+    if (lobbyConnections.TryGetValue(lobbyId, out var playerConnections))
     {
-        var buffer = Encoding.UTF8.GetBytes(message);
         var tasks = playerConnections.Values.Select(async socket =>
         {
+            LobbyNotificationDto notificationDto;
+
             try
             {
+                notificationDto = new LobbyNotificationDto((int)notificationStatus, additionalMessage);
+                var serializedMessage = JsonConvert.SerializeObject(notificationDto); 
+                var buffer = Encoding.UTF8.GetBytes(serializedMessage); 
+
                 await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
             }
             catch (WebSocketException)
             {
+                notificationDto = new LobbyNotificationDto((int)LobbyNotificationStatus.WebSocketError, "Error while NotifyLobby");
+                var serializedMessage = JsonConvert.SerializeObject(notificationDto);
+                var buffer = Encoding.UTF8.GetBytes(serializedMessage);
+
+                await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
                 await socket.CloseAsync(WebSocketCloseStatus.InternalServerError, "Error while NotifyLobby", CancellationToken.None);
             }
+            Console.WriteLine($"Notification Sent: StatusCode = {notificationDto.StatusCode}, Message = {notificationDto.Message}");
         });
 
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks); 
     }
 }
+
+
+
 
 
 async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby, IEdgegapService edgegapService)
@@ -245,7 +298,7 @@ async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby, IEdgegapSe
 
         if (serverAddress != null && serverPort != null)
         {
-            await NotifyLobby(lobbyId, $"{serverAddress}:{serverPort}");
+            await NotifyLobby(lobbyId, LobbyNotificationStatus.GameStarted, $"{serverAddress}:{serverPort}");
             return $"{serverAddress}:{serverPort}";
         }
 
@@ -265,7 +318,7 @@ async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> 
     while (socket.State == WebSocketState.Open)
     {
         var receiveTask = socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-        var timeoutTask = Task.Delay(TimeSpan.FromMinutes(2)); // Таймаут 2 минуты
+        var timeoutTask = Task.Delay(TimeSpan.FromMinutes(maxPlayers)); // Таймаут 2 минуты
         
         var completedTask = await Task.WhenAny(receiveTask, timeoutTask);
         if (completedTask == timeoutTask)
@@ -283,7 +336,7 @@ async Task CloseLobby(long lobbyId)
 {
     if (lobbies.TryRemove(lobbyId, out _))
     {
-        await NotifyLobby(lobbyId, "The lobby has been closed.");
+        await NotifyLobby(lobbyId, LobbyNotificationStatus.LobbyClosed, "The lobby has been closed.");
         
         if (lobbyConnections.TryRemove(lobbyId, out var playerConnections))
         {
