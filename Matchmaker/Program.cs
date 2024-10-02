@@ -23,21 +23,32 @@ if (app.Environment.IsDevelopment())
 }
 app.UseWebSockets();
 // TODO: make id with redis
-const int baseLobbyId = 1000000000; // just a cool number for id
+const int baseLobbyId = 1000000; // just a cool number for id
 var lobbies = new ConcurrentDictionary<long, Lobby>();
-// TODO: PLEASE LET ME USE RMQ!!!!!!!
+// TODO: PLEASE LET ME USE RMQ!!!!!!! Update: No, RMQ is not working in unity webgl build :(
 var lobbyConnections = new ConcurrentDictionary<long, ConcurrentDictionary<long, WebSocket>>(); // that's sucks...
 const int maxPlayers = 2;
 
 
 app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
 {
-    var lobbyId = GenerateLobbyId(); // Генерация уникального ID для лобби
+    var existingLobby = lobbies.Values.FirstOrDefault(lobby => 
+        lobby.Players.Any(player => player.TelegramId == request.Creator.TelegramId) || 
+        lobby.Spectators.Any(spectator => spectator.TelegramId == request.Creator.TelegramId)
+    );
+
+    if (existingLobby != null)
+    {
+        return Results.Ok(existingLobby);
+    }
+
+    var lobbyId = GenerateLobbyId();
     var lobby = new Lobby(lobbyId, request.Creator, request.LobbyName, request.Password);
     lobbies[lobbyId] = lobby;
-    lobbyConnections[lobbyId] = [];
+    lobbyConnections[lobbyId] = new ConcurrentDictionary<long, WebSocket>(); 
     return Results.Ok(lobby);
 });
+
 
 //TODO MVP2: spectators, bets, avatars
 
@@ -173,10 +184,8 @@ app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long
         var socket = await context.WebSockets.AcceptWebSocketAsync();
         var playerConnections = lobbyConnections.GetOrAdd(lobbyId, _ => new ConcurrentDictionary<long, WebSocket>());
 
-        // Добавляем игрока в список подключений
         playerConnections[playerId] = socket;
 
-        // Уведомляем о подключении
         var connectionNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerConnected, $"Player {playerId} connected to Lobby {lobbyId}");
         var connectionMessage = JsonConvert.SerializeObject(connectionNotification);
         var buffer = Encoding.UTF8.GetBytes(connectionMessage);
@@ -184,18 +193,15 @@ app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long
 
         await Receive(socket, playerId, lobbyId, async (result, _) =>
         {
-            // Если клиент инициировал закрытие соединения
             if (result.MessageType == WebSocketMessageType.Close)
             {
                 playerConnections.Remove(playerId, out var _);
 
-                // Уведомляем о разрыве соединения
                 var disconnectionNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerDisconnected, $"Player {playerId} disconnected from Lobby {lobbyId}");
                 var disconnectionMessage = JsonConvert.SerializeObject(disconnectionNotification);
                 var disconnectionBuffer = Encoding.UTF8.GetBytes(disconnectionMessage);
                 await socket.SendAsync(new ArraySegment<byte>(disconnectionBuffer), WebSocketMessageType.Text, true, CancellationToken.None);
 
-                // Закрываем WebSocket
                 await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by the WebSocket client", CancellationToken.None);
             }
         });
