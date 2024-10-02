@@ -35,7 +35,7 @@ public class EdgegapService : IEdgegapService
             {
                 app_name = _dockerImage,
                 app_version = _edgegapVersion,
-                ip_list = new[] { "1.2.3.4" } // пример IP списка
+                ip_list = new[] { "87.228.27.97" } // пример IP списка
             };
 
             var response = await _httpClient.PostAsJsonAsync("https://api.edgegap.com/v1/deploy", requestBody);

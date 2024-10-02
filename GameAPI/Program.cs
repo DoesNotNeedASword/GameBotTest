@@ -41,15 +41,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowSpecificOrigin", policy =>
-    {
-        policy.WithOrigins("https://test-telegram-app.online") // Разрешённый источник
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-    });
-});
 builder.Services.AddLogging();
 
 var mongoConnectionString = builder.Configuration["MONGODB_CONNECTIONSTRING"];

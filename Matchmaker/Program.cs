@@ -182,7 +182,7 @@ app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long
         var buffer = Encoding.UTF8.GetBytes(connectionMessage);
         await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
 
-        await Receive(socket, async (result, _) =>
+        await Receive(socket, playerId, lobbyId, async (result, _) =>
         {
             // Если клиент инициировал закрытие соединения
             if (result.MessageType == WebSocketMessageType.Close)
@@ -284,10 +284,6 @@ async Task NotifyLobby(long lobbyId, LobbyNotificationStatus notificationStatus,
     }
 }
 
-
-
-
-
 async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby, IEdgegapService edgegapService)
 {
     var requestId = await edgegapService.StartEdgegapServer(lobby);
@@ -302,7 +298,7 @@ async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby, IEdgegapSe
             return $"{serverAddress}:{serverPort}";
         }
 
-        await Task.Delay(1000);
+        await Task.Delay(2000);
     }
     return null;
 }
@@ -312,14 +308,14 @@ long GenerateLobbyId()
     return !lobbies.IsEmpty ? lobbies.Last().Key + 1 : baseLobbyId;
 }
 
-async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> handleMessage)
+async Task Receive(WebSocket socket, long playerId, long lobbyId, Func<WebSocketReceiveResult, byte[], Task> handleMessage)
 {
     var buffer = new byte[1024 * 4];
     while (socket.State == WebSocketState.Open)
     {
         var receiveTask = socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-        var timeoutTask = Task.Delay(TimeSpan.FromMinutes(maxPlayers)); // Таймаут 2 минуты
-        
+        var timeoutTask = Task.Delay(TimeSpan.FromMinutes(1));
+
         var completedTask = await Task.WhenAny(receiveTask, timeoutTask);
         if (completedTask == timeoutTask)
         {
@@ -328,7 +324,55 @@ async Task Receive(WebSocket socket, Func<WebSocketReceiveResult, byte[], Task> 
         }
         
         var result = await receiveTask;
+        if (result.MessageType == WebSocketMessageType.Close)
+        {
+            await LeaveLobby(lobbyId, playerId);
+            break;
+        }
+
         await handleMessage(result, buffer);
+    }
+}
+
+async Task LeaveLobby(long lobbyId, long playerId)
+{
+    if (!lobbies.TryGetValue(lobbyId, out var lobby)) 
+        return; 
+
+    var player = lobby.Players.FirstOrDefault(p => p.TelegramId == playerId);
+    if (player != null)
+    {
+        lobby.Players.Remove(player);
+        await NotifyLobby(lobbyId, LobbyNotificationStatus.PlayerDisconnected, $"{player.Name} has left the lobby.");
+    }
+    else
+    {
+        var spectator = lobby.Spectators.FirstOrDefault(p => p.TelegramId == playerId);
+        if (spectator != null)
+        {
+            lobby.Spectators.Remove(spectator);
+            await NotifyLobby(lobbyId, LobbyNotificationStatus.PlayerDisconnected, $"{spectator.Name} has left the lobby.");
+        }
+        else
+        {
+            return; 
+        }
+    }
+
+    if (lobby.Players.Count == 0 && lobby.Spectators.Count == 0)
+    {
+        await CloseLobby(lobbyId); 
+    }
+    else
+    {
+        if (lobbyConnections.TryGetValue(lobbyId, out var playerConnections))
+        {
+            playerConnections.Remove(playerId, out var socket);
+            if (socket != null)
+            {
+                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Player left", CancellationToken.None);
+            }
+        }
     }
 }
 
@@ -337,7 +381,7 @@ async Task CloseLobby(long lobbyId)
     if (lobbies.TryRemove(lobbyId, out _))
     {
         await NotifyLobby(lobbyId, LobbyNotificationStatus.LobbyClosed, "The lobby has been closed.");
-        
+
         if (lobbyConnections.TryRemove(lobbyId, out var playerConnections))
         {
             foreach (var connection in playerConnections.Values)
@@ -347,3 +391,4 @@ async Task CloseLobby(long lobbyId)
         }
     }
 }
+
