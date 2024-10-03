@@ -261,7 +261,7 @@ async Task StartHeartbeat(WebSocket socket, long lobbyId, long playerId)
         try
         {
             // Отправляем heartbeat
-            var heartbeatMessage = new LobbyNotificationDto((int)LobbyNotificationStatus.Heartbeat, "ping");
+            var heartbeatMessage = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerConnected, "ping");
             var serializedMessage = JsonConvert.SerializeObject(heartbeatMessage);
             var buffer = Encoding.UTF8.GetBytes(serializedMessage);
 
