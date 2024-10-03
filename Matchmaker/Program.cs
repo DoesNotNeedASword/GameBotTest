@@ -28,6 +28,7 @@ var lobbies = new ConcurrentDictionary<long, Lobby>();
 // TODO: PLEASE LET ME USE RMQ!!!!!!! Update: No, RMQ is not working in unity webgl build :(
 var lobbyConnections = new ConcurrentDictionary<long, ConcurrentDictionary<long, WebSocket>>(); // that's sucks...
 const int maxPlayers = 2;
+const int heartbeatIntervalSeconds = 30;
 
 
 app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
@@ -171,7 +172,7 @@ app.MapPost("/lobby", (string? filter = null) =>
 
 app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long playerId, HttpContext context) =>
 {
-    if (!lobbies.ContainsKey(lobbyId))
+    if (!lobbyConnections.ContainsKey(lobbyId))
     {
         context.Response.StatusCode = 404;
         var notificationDto = new LobbyNotificationDto((int)LobbyNotificationStatus.LobbyNotFound, "Lobby not found");
@@ -183,7 +184,6 @@ app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long
     {
         var socket = await context.WebSockets.AcceptWebSocketAsync();
         var playerConnections = lobbyConnections.GetOrAdd(lobbyId, _ => new ConcurrentDictionary<long, WebSocket>());
-
         playerConnections[playerId] = socket;
 
         var connectionNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerConnected, $"Player {playerId} connected to Lobby {lobbyId}");
@@ -191,17 +191,14 @@ app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long
         var buffer = Encoding.UTF8.GetBytes(connectionMessage);
         await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
 
+        _ = StartHeartbeat(socket, lobbyId, playerId);
+
         await Receive(socket, playerId, lobbyId, async (result, _) =>
         {
             if (result.MessageType == WebSocketMessageType.Close)
             {
                 playerConnections.Remove(playerId, out var _);
-
-                var disconnectionNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerDisconnected, $"Player {playerId} disconnected from Lobby {lobbyId}");
-                var disconnectionMessage = JsonConvert.SerializeObject(disconnectionNotification);
-                var disconnectionBuffer = Encoding.UTF8.GetBytes(disconnectionMessage);
-                await socket.SendAsync(new ArraySegment<byte>(disconnectionBuffer), WebSocketMessageType.Text, true, CancellationToken.None);
-
+                await LeaveLobby(lobbyId, playerId);
                 await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by the WebSocket client", CancellationToken.None);
             }
         });
@@ -213,7 +210,6 @@ app.MapGet("/lobby/ws/{lobbyId:long}&{playerId:long}", async (long lobbyId, long
         await context.Response.WriteAsJsonAsync(notificationDto);
     }
 });
-
 
 app.MapPost("/lobby/close/{lobbyId:long}", async (long lobbyId) =>
 {
@@ -256,6 +252,31 @@ app.MapPost("/lobby/closeGame", async (CloseGameRequest request, IEdgegapService
 
 app.Run();
 return;
+
+
+async Task StartHeartbeat(WebSocket socket, long lobbyId, long playerId)
+{
+    while (socket.State == WebSocketState.Open)
+    {
+        try
+        {
+            // Отправляем heartbeat
+            var heartbeatMessage = new LobbyNotificationDto((int)LobbyNotificationStatus.Heartbeat, "ping");
+            var serializedMessage = JsonConvert.SerializeObject(heartbeatMessage);
+            var buffer = Encoding.UTF8.GetBytes(serializedMessage);
+
+            await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
+            await Task.Delay(TimeSpan.FromSeconds(heartbeatIntervalSeconds));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Heartbeat failed for player {playerId} in lobby {lobbyId}: {ex.Message}");
+            // Если произошла ошибка, можно переподключить или завершить сессию
+            break;
+        }
+    }
+}
+
 
 async Task NotifyLobby(long lobbyId, LobbyNotificationStatus notificationStatus, string additionalMessage = "")
 {
