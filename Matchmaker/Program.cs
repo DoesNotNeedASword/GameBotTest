@@ -226,9 +226,8 @@ app.MapPost("/lobby/close/{lobbyId:long}", async (long lobbyId) =>
 app.MapPost("/lobby/closeGame", async (CloseGameRequest request, IEdgegapService edgegapService, HttpClient httpClient) =>
 {
     var result = await edgegapService.StopDeployment(request.RequestId);
-
- 
-
+    var lobby = lobbies.FirstOrDefault(l => l.Value.Players.Any(p => p.TelegramId == request.Winner));
+    await CloseLobby(lobby.Key);
     var winnerResponse = await httpClient.PutAsJsonAsync(
         $"http://gameapi:8080/api/players/{request.Winner}/rating", 
         1
