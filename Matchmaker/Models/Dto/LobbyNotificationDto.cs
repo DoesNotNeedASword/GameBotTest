@@ -9,6 +9,7 @@ public class LobbyNotificationDto(int statusCode, string message)
 public enum LobbyNotificationStatus
 {
     Heartbeat = 100,
+    GameIsStarting = 101,
     GameStarted = 200,
     PlayerConnected = 201,
     PlayerDisconnected = 202,

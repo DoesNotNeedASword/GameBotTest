@@ -110,7 +110,7 @@ app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId, IEdgegapService 
     
     if (lobby.Players.Count != 2) 
         return Results.BadRequest("Lobby must have exactly 2 players to start the game");
-
+    await NotifyLobby(lobbyId, LobbyNotificationStatus.GameIsStarting, "Failed to start the game.");
     var result = await StartConnectionAttempt(lobbyId, lobby, edgegapService);
 
     if (result != null)
@@ -261,7 +261,7 @@ async Task StartHeartbeat(WebSocket socket, long lobbyId, long playerId)
         try
         {
             // Отправляем heartbeat
-            var heartbeatMessage = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerConnected, "ping");
+            var heartbeatMessage = new LobbyNotificationDto((int)LobbyNotificationStatus.Heartbeat, "ping");
             var serializedMessage = JsonConvert.SerializeObject(heartbeatMessage);
             var buffer = Encoding.UTF8.GetBytes(serializedMessage);
 
