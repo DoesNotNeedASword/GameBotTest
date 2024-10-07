@@ -31,10 +31,10 @@ const int maxPlayers = 2;
 const int heartbeatIntervalSeconds = 30;
 
 
-app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
+app.MapPost("/lobby/create", (CreateLobbyRequest request, HttpContext context, IEdgegapService edgegapService) =>
 {
-    var existingLobby = lobbies.Values.FirstOrDefault(lobby => 
-        lobby.Players.Any(player => player.TelegramId == request.Creator.TelegramId) || 
+    var existingLobby = lobbies.Values.FirstOrDefault(lobby =>
+        lobby.Players.Any(player => player.TelegramId == request.Creator.TelegramId) ||
         lobby.Spectators.Any(spectator => spectator.TelegramId == request.Creator.TelegramId)
     );
 
@@ -42,13 +42,15 @@ app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
     {
         return Results.Ok(existingLobby);
     }
-
+    
+    var creatorIp = edgegapService.GetClientIp(context);
     var lobbyId = GenerateLobbyId();
-    var lobby = new Lobby(lobbyId, request.Ip, request.Creator, request.LobbyName, request.Password);
+    var lobby = new Lobby(lobbyId, creatorIp, request.Creator, request.LobbyName, request.Password);
     lobbies[lobbyId] = lobby;
-    lobbyConnections[lobbyId] = new ConcurrentDictionary<long, WebSocket>(); 
+    lobbyConnections[lobbyId] = new ConcurrentDictionary<long, WebSocket>();
     return Results.Ok(lobby);
 });
+
 
 
 //TODO MVP2: spectators, bets, avatars
@@ -71,7 +73,7 @@ app.MapGet("lobby/creator/{id:long}", (long id) =>
     return Results.Ok(lobby.Value);
 });
 
-app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest request) =>
+app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest request, HttpContext context, IEdgegapService edgegapService) =>
 {
     if (!lobbies.TryGetValue(lobbyId, out var lobby))
         return Results.NotFound("Lobby not found");
@@ -79,14 +81,18 @@ app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest 
     if (lobby.Password != null && lobby.Password != request.Password)
         return Results.BadRequest("Incorrect password");
 
-    if (lobby.Players.Count >= maxPlayers) return Results.BadRequest("Lobby is full. Cannot add more players.");
-    
+    if (lobby.Players.Count >= maxPlayers)
+        return Results.BadRequest("Lobby is full. Cannot add more players.");
+
+    // Получаем IP-адрес присоединяющегося игрока
+    var playerIp = edgegapService.GetClientIp(context);
+
     lobby.Players.Add(request.Player);
-    lobby.IpList.Add(request.Ip);
-    
+    lobby.IpList.Add(playerIp); 
     await NotifyLobby(lobbyId, LobbyNotificationStatus.PlayerConnected, $"{request.Player.Name} has joined the lobby as a player.");
     return Results.Ok(lobby);
 });
+
 
 
 app.MapPost("/lobby/{lobbyId:long}/spectate", async (long lobbyId, JoinLobbyRequest request) =>

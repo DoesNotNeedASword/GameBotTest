@@ -76,4 +76,10 @@ public class EdgegapService : IEdgegapService
         var response = await _httpClient.DeleteAsync($"https://api.edgegap.com/v1/stop/{requestId}");
         return response.IsSuccessStatusCode;
     }
+    public string GetClientIp(HttpContext context)
+    {
+        var ip = context.Connection.RemoteIpAddress?.ToString();
+        return string.IsNullOrEmpty(ip) ? "87.228.27.97" : ip;
+    }
+
 }
