@@ -44,7 +44,7 @@ app.MapPost("/lobby/create", (CreateLobbyRequest request) =>
     }
 
     var lobbyId = GenerateLobbyId();
-    var lobby = new Lobby(lobbyId, request.Creator, request.LobbyName, request.Password);
+    var lobby = new Lobby(lobbyId, request.Ip, request.Creator, request.LobbyName, request.Password);
     lobbies[lobbyId] = lobby;
     lobbyConnections[lobbyId] = new ConcurrentDictionary<long, WebSocket>(); 
     return Results.Ok(lobby);
@@ -82,6 +82,7 @@ app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest 
     if (lobby.Players.Count >= maxPlayers) return Results.BadRequest("Lobby is full. Cannot add more players.");
     
     lobby.Players.Add(request.Player);
+    lobby.IpList.Add(request.Ip);
     
     await NotifyLobby(lobbyId, LobbyNotificationStatus.PlayerConnected, $"{request.Player.Name} has joined the lobby as a player.");
     return Results.Ok(lobby);
@@ -111,7 +112,7 @@ app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId, IEdgegapService 
     if (lobby.Players.Count != 2) 
         return Results.BadRequest("Lobby must have exactly 2 players to start the game");
     await NotifyLobby(lobbyId, LobbyNotificationStatus.GameIsStarting, "Failed to start the game.");
-    var result = await StartConnectionAttempt(lobbyId, lobby, edgegapService);
+    var result = await StartConnectionAttempt(lobbyId, lobby, edgegapService, lobby.IpList);
 
     if (result != null)
         return Results.Ok("Game started");
@@ -310,9 +311,9 @@ async Task NotifyLobby(long lobbyId, LobbyNotificationStatus notificationStatus,
     }
 }
 
-async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby, IEdgegapService edgegapService)
+async Task<string?> StartConnectionAttempt(long lobbyId, Lobby lobby, IEdgegapService edgegapService, List<string> ipList)
 {
-    var requestId = await edgegapService.StartEdgegapServer(lobby);
+    var requestId = await edgegapService.StartEdgegapServer(lobby, ipList);
     if (requestId is null) return null;
     for (var attempt = 0; attempt < 10; attempt++) 
     {

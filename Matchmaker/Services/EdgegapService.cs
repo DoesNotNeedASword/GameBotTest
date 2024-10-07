@@ -27,7 +27,7 @@ public class EdgegapService : IEdgegapService
         _httpClient.DefaultRequestHeaders.Add("authorization", edgegapApiToken);
     }
 
-    public async Task<string?> StartEdgegapServer(Lobby lobby)
+    public async Task<string?> StartEdgegapServer(Lobby lobby, List<string> ipList)
     {
         try
         {
@@ -35,7 +35,7 @@ public class EdgegapService : IEdgegapService
             {
                 app_name = _dockerImage,
                 app_version = _edgegapVersion,
-                ip_list = new[] { "87.228.27.97" } // пример IP списка
+                ip_list = ipList.ToArray()
             };
 
             var response = await _httpClient.PostAsJsonAsync("https://api.edgegap.com/v1/deploy", requestBody);
