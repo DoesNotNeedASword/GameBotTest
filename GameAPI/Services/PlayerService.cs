@@ -55,7 +55,7 @@ public class PlayerService(IMongoDatabase database)
     public async Task<bool> UpdateRatingAsync(long telegramId, int change)
     {
         var filter = Builders<Player>.Filter.Eq(p => p.TelegramId, telegramId);
-        var update = Builders<Player>.Update.Inc(p => p.Rating, change);
+        var update = Builders<Player>.Update.Inc(p => p.Score, change);
         var result = await _players.UpdateOneAsync(filter, update);
         return result.ModifiedCount > 0;
     }
@@ -63,7 +63,7 @@ public class PlayerService(IMongoDatabase database)
     public async Task<List<Player>> GetTopPlayers(int count)
     {
         return await _players.Find(_ => true) 
-            .SortByDescending(player => player.Rating) 
+            .SortByDescending(player => player.Score) 
             .Limit(count)
             .ToListAsync();
     }

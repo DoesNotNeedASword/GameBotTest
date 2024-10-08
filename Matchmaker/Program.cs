@@ -25,7 +25,7 @@ app.UseWebSockets();
 // TODO: make id with redis
 const int baseLobbyId = 1000000; // just a cool number for id
 var lobbies = new ConcurrentDictionary<long, Lobby>();
-// TODO: PLEASE LET ME USE RMQ!!!!!!! Update: No, RMQ is not working in unity webgl build :(
+// RMQ is not working in unity webgl build :(
 var lobbyConnections = new ConcurrentDictionary<long, ConcurrentDictionary<long, WebSocket>>(); // that's sucks...
 const int maxPlayers = 2;
 const int heartbeatIntervalSeconds = 30;
@@ -51,9 +51,6 @@ app.MapPost("/lobby/create", (CreateLobbyRequest request, HttpContext context, I
     return Results.Ok(lobby);
 });
 
-
-
-//TODO MVP2: spectators, bets, avatars
 
 app.MapGet("lobby/any", () =>
 {
@@ -229,32 +226,18 @@ app.MapPost("/lobby/close/{lobbyId:long}", async (long lobbyId) =>
 app.MapPost("/lobby/closeGame", async (CloseGameRequest request, IEdgegapService edgegapService, HttpClient httpClient) =>
 {
     var result = await edgegapService.StopDeployment(request.RequestId);
-    var lobby = lobbies.FirstOrDefault(l => l.Value.Players.Any(p => p.TelegramId == request.Winner));
+    var lobby = lobbies.
+        FirstOrDefault(l => l.Value.Players.
+            Any(p => p.TelegramId == request.Winner));
     await CloseLobby(lobby.Key);
     var winnerResponse = await httpClient.PutAsJsonAsync(
         $"http://gameapi:8080/api/players/{request.Winner}/rating", 
         1
     );
 
-    if (!winnerResponse.IsSuccessStatusCode)
-    {
-        return Results.Problem($"Failed to update rating for the winner with Telegram ID {request.Winner}.");
-    }
-
-    foreach (var loser in request.Losers)
-    {
-        var loserResponse = await httpClient.PutAsJsonAsync(
-            $"http://gameapi:8080/api/players/{loser}/rating", 
-            -1
-        );
-
-        if (!loserResponse.IsSuccessStatusCode)
-        {
-            return Results.Problem($"Failed to update rating for player with Telegram ID {loser}.");
-        }
-    }
-
-    return Results.Ok(new { Winner = request.Winner, Losers = request.Losers });
+    return !winnerResponse.IsSuccessStatusCode ? 
+        Results.Problem($"Failed to update rating for the winner with Telegram ID {request.Winner}.") : 
+        Results.Ok(new { Winner = request.Winner, Losers = request.Losers });
 });
 
 app.Run();
@@ -267,7 +250,6 @@ async Task StartHeartbeat(WebSocket socket, long lobbyId, long playerId)
     {
         try
         {
-            // Отправляем heartbeat
             var heartbeatMessage = new LobbyNotificationDto((int)LobbyNotificationStatus.Heartbeat, "ping");
             var serializedMessage = JsonConvert.SerializeObject(heartbeatMessage);
             var buffer = Encoding.UTF8.GetBytes(serializedMessage);
@@ -278,7 +260,6 @@ async Task StartHeartbeat(WebSocket socket, long lobbyId, long playerId)
         catch (Exception ex)
         {
             Console.WriteLine($"Heartbeat failed for player {playerId} in lobby {lobbyId}: {ex.Message}");
-            // Если произошла ошибка, можно переподключить или завершить сессию
             break;
         }
     }
