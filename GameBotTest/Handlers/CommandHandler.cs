@@ -40,16 +40,17 @@ namespace GameBotTest.Handlers
             }
             else
             {
-                await _botClient.SendTextMessageAsync(context.ChatId, "Неизвестная команда.");
+                await _botClient.SendTextMessageAsync(context.ChatId, "Unknown command.");
             }
         }
+
         private async Task HandleNoRefCommand(Context context)
         {
-            var noRefMessage = "Вы вошли без реферального кода. Добро пожаловать! Вы можете запустить mini app или присоединиться к нашему сообществу.";
+            var noRefMessage = "You have joined without a referral code. Welcome! You can launch the mini app or join our community.";
             var startKeyboard = new ReplyKeyboardMarkup(new[]
             {
-                new KeyboardButton("Запустить mini app"),
-                new KeyboardButton("Присоединиться к комьюнити")
+                new KeyboardButton("Launch mini app"),
+                new KeyboardButton("Join community")
             })
             {
                 ResizeKeyboard = true
@@ -67,8 +68,8 @@ namespace GameBotTest.Handlers
         {
             var startKeyboard = new ReplyKeyboardMarkup(new[]
             {
-                new KeyboardButton("Запустить mini app"),
-                new KeyboardButton("Присоединиться к комьюнити")
+                new KeyboardButton("Launch mini app"),
+                new KeyboardButton("Join community")
             })
             {
                 ResizeKeyboard = true
@@ -76,31 +77,32 @@ namespace GameBotTest.Handlers
             var player = await _apiClient.RegisterPlayerAsync(context.ChatId, context.UserName ?? context.UserFirstName + " " + context.UserLastName, context.RefId);
             if (player is null)
             {
-                await _botClient.SendTextMessageAsync(context.ChatId, "Internal Error", replyMarkup: startKeyboard);
+                await _botClient.SendTextMessageAsync(context.ChatId,
+                    "Вы уже зарегистрированы. Запускайте бот и приятной игры :) \nYou are already registered. Launch the bot and enjoy the game :)", replyMarkup: startKeyboard);;
                 return;
             }
-            var welcomeMessage = "Добро пожаловать в наш бот! Здесь вы можете запустить mini app, присоединиться к нашему сообществу и получать обновления.";
+            var welcomeMessage = "Welcome to our bot! Here you can launch the mini app, join our community, and receive updates.";
             await _botClient.SendTextMessageAsync(context.ChatId, welcomeMessage, replyMarkup: startKeyboard);
         }
 
         private async Task HandleStartMiniAppCommand(Context context)
         {
-            var earlyStageMessage = "Наш продукт находится в ранней стадии разработки. Мы будем рады вашим отзывам!";
+            var earlyStageMessage = "Our product is in its early stage of development. We would love to hear your feedback!";
             await _botClient.SendTextMessageAsync(context.ChatId, earlyStageMessage);
 
             var webAppUrl = _configuration["WEB_APP_URL"];
             var webAppKeyboard = new InlineKeyboardMarkup(new[]
             {
-                InlineKeyboardButton.WithWebApp("Запустить игру", new WebAppInfo { Url = webAppUrl! }),
+                InlineKeyboardButton.WithWebApp("Start Game", new WebAppInfo { Url = webAppUrl! }),
             });
-            await _botClient.SendTextMessageAsync(context.ChatId, $"Нажмите кнопку ниже, чтобы начать игру: {webAppUrl}", replyMarkup: webAppKeyboard);
+            await _botClient.SendTextMessageAsync(context.ChatId, $"Click the button below to start the game: {webAppUrl}", replyMarkup: webAppKeyboard);
         }
 
         private async Task HandleJoinCommunityCommand(Context context)
         {
             var communityLink = _configuration["COMMUNITY_LINK"];
             var id = await _apiClient.GetPlayerId(context.ChatId);
-            var communityMessage = $"Наш продукт находится в ранней стадии разработки. Мы будем рады вашим отзывам! \nСсылка на группу: {communityLink+id}";
+            var communityMessage = $"Our product is in its early stage of development. We would love to hear your feedback! \nGroup link: {communityLink+id}";
             await _botClient.SendTextMessageAsync(context.ChatId, communityMessage);
         }
     }
