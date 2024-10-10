@@ -4,7 +4,7 @@ using MongoDB.Driver;
 
 namespace GameAPI.Services;
 
-public class PlayerService(IMongoDatabase database)
+public class PlayerService(IMongoDatabase database) : IPlayerService
 {
     private readonly IMongoCollection<Player> _players = database.GetCollection<Player>("Players");
 
@@ -67,5 +67,20 @@ public class PlayerService(IMongoDatabase database)
             .Limit(count)
             .ToListAsync();
     }
+    public async Task<List<Player>> GetReferralsAsync(long referrerId)
+    {
+        var filter = Builders<Player>.Filter.Eq(p => p.ReferrerId, referrerId);
+        var sort = Builders<Player>.Sort.Descending(p => p.Score);
+        return await _players.Find(filter).Sort(sort).ToListAsync();
+    }
 
+    public async Task<Player?> GetReferrerAsync(long playerId)
+    {
+        var player = await _players.Find(p => p.TelegramId == playerId).FirstOrDefaultAsync();
+        if (player == null) return null;
+
+        var referrerFilter = Builders<Player>.Filter.Eq(p => p.TelegramId, player.ReferrerId);
+        return await _players.Find(referrerFilter).FirstOrDefaultAsync();
+    }
 }
+

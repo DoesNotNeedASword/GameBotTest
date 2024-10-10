@@ -10,11 +10,11 @@ namespace GameAPI.Services;
 public class CacheService : ICacheService
 {
     private readonly IDistributedCache _cache;
-    private readonly PlayerService _playerService; 
+    private readonly IPlayerService _playerService; 
     private const string LeaderboardKey = "players:leaderboard";
     private const string PlayerKeyPrefix = "player:";
 
-    public CacheService(IDistributedCache cache, PlayerService playerService)
+    public CacheService(IDistributedCache cache, IPlayerService playerService)
     {
         _cache = cache;
         _playerService = playerService;

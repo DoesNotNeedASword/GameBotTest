@@ -7,6 +7,7 @@ using System.Web;
 using GameAPI.Models;
 using GameAPI.Options;
 using GameAPI.Services;
+using GameAPI.Verification.Model;
 using GameDomain.Interfaces;
 using GameDomain.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -39,13 +40,13 @@ builder.Services.AddSingleton<JwtService>();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddLogging();
 
 var mongoConnectionString = builder.Configuration["MONGODB_CONNECTIONSTRING"];
 var mongoDatabaseName = builder.Configuration["MONGODB_DATABASENAME"];
 const string cacheKey = "players";
+const string referrerKey = "referrer";
 var jsonSerializerOptions = new JsonSerializerOptions
 {
     PropertyNameCaseInsensitive = true
@@ -78,9 +79,9 @@ builder.Services.AddStackExchangeRedisCache(cacheOptions =>
     cacheOptions.InstanceName = "SampleInstance";
 });
 builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection("Redis"));
-builder.Services.AddScoped<PlayerService>();
+builder.Services.AddScoped<IPlayerService, PlayerService>();
 builder.Services.AddScoped<ICacheService, CacheService>(provider => 
-    new CacheService(provider.GetRequiredService<IDistributedCache>(), provider.GetRequiredService<PlayerService>()));
+    new CacheService(provider.GetRequiredService<IDistributedCache>(), provider.GetRequiredService<IPlayerService>()));
 builder.Services.AddScoped<ILevelService, LevelService>();
 
 var app = builder.Build();
@@ -95,7 +96,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 
-app.MapGet("/api/players", async (PlayerService playerService, ICacheService cacheService) =>
+app.MapGet("/api/players", async (IPlayerService playerService, ICacheService cacheService) =>
 {
     var cachedPlayers = await cacheService.GetAsync(cacheKey);
     if (!string.IsNullOrEmpty(cachedPlayers))
@@ -114,26 +115,25 @@ app.MapGet("/api/players/{id:long}", async (long id, ICacheService cacheService)
     return player != null ? Results.Ok(player) : Results.NotFound();
 }).WithName("GetPlayer").AllowAnonymous();
 
-app.MapPost("/api/players", async ([FromBody] Player player, PlayerService playerService, ICacheService cacheService) =>
+app.MapPost("/api/players", async ([FromBody] Player player, IPlayerService playerService, ICacheService cacheService) =>
 {
     await playerService.CreateAsync(player);
-    await cacheService.SetAsync(cacheKey, JsonSerializer.Serialize(player)); 
+    await cacheService.SetAsync($"{cacheKey}:{player.TelegramId}", JsonSerializer.Serialize(player));
     return Results.Ok(player);
 }).AllowAnonymous();
 
-app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, PlayerService playerService,
+app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, IPlayerService playerService,
     ICacheService cacheService) =>
 {
     var player = await playerService.GetAsync(id);
     if(player is null)
         return Results.NotFound();
     await playerService.UpdateAsync(id, playerIn);
-    await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
     return Results.Ok();
 }).AllowAnonymous();
 
 app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [FromBody] int ratingChange,
-    PlayerService playerService, ICacheService cacheService) =>
+    IPlayerService playerService, ICacheService cacheService) =>
 {
     var success = await playerService.UpdateRatingAsync(telegramId, ratingChange);
 
@@ -148,13 +148,13 @@ app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [Fro
     }
 }).AllowAnonymous();
 
-app.MapDelete("/api/players/{id:long}", async (long id, PlayerService playerService,
+app.MapDelete("/api/players/{id:long}", async (long id, IPlayerService playerService,
     ICacheService cacheService) =>
 {
     var player = await playerService.GetAsync(id);
 
     await playerService.RemoveAsync(id);
-    await cacheService.RemoveAsync(cacheKey);  // Invalidate cache
+    await cacheService.RemoveAsync($"{cacheKey}:{id}");  
     return Results.NoContent();
 }).RequireAuthorization();
 
@@ -191,7 +191,7 @@ app.MapPost("/api/verify", async (HttpRequest request) =>
     }
     var data = HttpUtility.ParseQueryString(payload.InitData);
 
-    return IsValidData(data, constantKey, botToken) ? Results.Ok(new { valid = true }) : Results.BadRequest();
+    return VerificationService.IsValidData(data, constantKey, botToken) ? Results.Ok(new { valid = true }) : Results.BadRequest();
 }).AllowAnonymous();
 
 
@@ -203,34 +203,25 @@ app.MapPost("/api/login", async (LoginModel login, IConfiguration config, JwtSer
     return Results.Ok(new { token });
 }).AllowAnonymous();
 
+app.MapGet("/api/players/referrals/{telegramId:long}", async (long telegramId, IPlayerService playerService) =>
+{
+    var referrals = await playerService.GetReferralsAsync(telegramId);
+    return Results.Ok(referrals);
+}).AllowAnonymous();
+
+app.MapGet("/api/players/referrer/{telegramId:long}", async (long telegramId, IPlayerService playerService, ICacheService cacheService) =>
+{
+    var cachedReferrer = await cacheService.GetAsync($"{referrerKey}:{telegramId}");
+    if (!string.IsNullOrEmpty(cachedReferrer))
+    {
+        return Results.Ok(JsonSerializer.Deserialize<Player>(cachedReferrer));
+    }
+
+    var referrer = await playerService.GetReferrerAsync(telegramId);
+    if (referrer == null) return Results.NotFound("Referrer not found.");
+    await cacheService.SetAsync(cacheKey, JsonSerializer.Serialize(referrer));
+    return Results.Ok(referrer);
+
+}).AllowAnonymous();
+
 app.Run();
-return;
-
-static byte[] Hmacsha256Hash(byte[] key, byte[] data)
-{
-    using var hmac = new HMACSHA256(key);
-    return hmac.ComputeHash(data);
-}
-
-static bool IsValidData(NameValueCollection nameValueCollection, string key, string botToken)
-{
-    var dataDict = new SortedDictionary<string, string>(
-        nameValueCollection.AllKeys.ToDictionary(x => x!, x => nameValueCollection[x]!),
-        StringComparer.Ordinal);
-    var dataCheckString = string.Join(
-        '\n', dataDict.Where(x => x.Key != "hash")
-            .Select(x => $"{x.Key}={x.Value}"));
-    
-    var secretKey = Hmacsha256Hash(Encoding.UTF8.GetBytes(key), Encoding.UTF8.GetBytes(botToken));
-    var generatedHash = Hmacsha256Hash(secretKey, Encoding.UTF8.GetBytes(dataCheckString));
-    var actualHash = Convert.FromHexString(dataDict["hash"]);
-    
-    return actualHash.SequenceEqual(generatedHash);
-}
-
-
-public class TgPayloadDto
-{
-    [JsonPropertyName("init_data")]
-    public string? InitData { get; init; }
-}
