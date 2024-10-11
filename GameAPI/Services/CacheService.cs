@@ -32,24 +32,22 @@ public class CacheService : ICacheService
         await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(player), new DistributedCacheEntryOptions { SlidingExpiration = TimeSpan.FromHours(1) });
         return player;
     }
-    public async Task<List<KeyValuePair<long, double>>> GetTopPlayersAsync(int count = 100)
+    public async Task<List<Player>> GetTopPlayersAsync(int count = 100)
     {
         // Пытаемся получить данные из кэша
         var cachedData = await _cache.GetStringAsync(LeaderboardKey);
         if (!string.IsNullOrEmpty(cachedData))
         {
-            return JsonSerializer.Deserialize<List<KeyValuePair<long, double>>>(cachedData);
+            return JsonSerializer.Deserialize<List<Player>>(cachedData)!;
         }
         
         // Получение данных из базы данных, если кэш пуст
         var playersFromDb = await _playerService.GetTopPlayers(count);
-        var players = playersFromDb.Select(p => new KeyValuePair<long, double>(p.TelegramId, p.Rating)).ToList();
-        
         // Сериализация и кэширование данных
-        var serializedData = JsonSerializer.Serialize(players);
+        var serializedData = JsonSerializer.Serialize(playersFromDb);
         await SetAsync(LeaderboardKey, serializedData, TimeSpan.FromMinutes(5));
         
-        return players;
+        return playersFromDb;
     }
     
     public async Task<string?> GetAsync(string key)
@@ -67,19 +65,5 @@ public class CacheService : ICacheService
     public async Task RemoveAsync(string key)
     {
         await _cache.RemoveAsync(key);
-    }
-
-    public async Task UpdateLeaderboardAsync(long playerId, int rating)
-    {
-        var leaders = await GetTopPlayersAsync();
-
-        var playerIndex = leaders.FindIndex(p => p.Key == playerId);
-        if (playerIndex >= 0)
-        {
-            var updatedPlayer = leaders[playerIndex];
-            leaders[playerIndex] = new KeyValuePair<long, double>(playerId, updatedPlayer.Value + rating);
-
-            await SetAsync(LeaderboardKey, JsonSerializer.Serialize(leaders), TimeSpan.FromMinutes(5));
-        }
     }
 }

@@ -163,15 +163,7 @@ app.MapGet("/api/leaders", async ([FromServices] ICacheService cacheService) =>
     try
     {
         var leaders = await cacheService.GetTopPlayersAsync();
-        if (leaders.Count == 0)
-        {
-            return Results.NotFound("No leaders found.");
-        }
-        
-        var playerList = leaders.Select(leader => new Player { TelegramId = leader.Key,
-            Rating = (int)leader.Value }).ToList();
-
-        return Results.Ok(playerList);
+        return leaders.Count == 0 ? Results.NotFound("No leaders found.") : Results.Ok(leaders);
     }
     catch (Exception ex)
     {

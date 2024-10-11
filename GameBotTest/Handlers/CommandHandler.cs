@@ -58,7 +58,8 @@ namespace GameBotTest.Handlers
             var player = await _apiClient.RegisterPlayerAsync(context.ChatId, context.UserName ?? context.UserFirstName + " " + context.UserLastName);
             if (player is null)
             {
-                await _botClient.SendTextMessageAsync(context.ChatId, "Internal Error", replyMarkup: startKeyboard);
+                await _botClient.SendTextMessageAsync(context.ChatId,
+                    "Вы уже зарегистрированы. Запускайте бот и приятной игры :) \nYou are already registered. Launch the bot and enjoy the game :)", replyMarkup: startKeyboard);
                 return;
             }
             await _botClient.SendTextMessageAsync(context.ChatId, noRefMessage, replyMarkup: startKeyboard);
