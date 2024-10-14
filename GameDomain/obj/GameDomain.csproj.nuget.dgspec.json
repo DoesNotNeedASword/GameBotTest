@@ -41,7 +41,7 @@
           "dependencies": {
             "MongoDB.Bson": {
               "target": "Package",
-              "version": "[2.28.0, )"
+              "version": "[2.27.0, )"
             },
             "MongoDB.Driver": {
               "target": "Package",

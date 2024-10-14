@@ -1,8 +1,5 @@
-using System.Collections.Specialized;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Web;
 using GameAPI.Models;
 using GameAPI.Options;
@@ -10,6 +7,7 @@ using GameAPI.Services;
 using GameAPI.Verification.Model;
 using GameDomain.Interfaces;
 using GameDomain.Models;
+using GameDomain.Models.DTOs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
@@ -69,6 +67,13 @@ BsonClassMap.RegisterClassMap<Player>(cm =>
     cm.AutoMap();
     cm.SetIgnoreExtraElements(true);  
 });
+BsonClassMap.RegisterClassMap<Region>(cm =>
+{
+    cm.AutoMap();
+    cm.SetIgnoreExtraElements(true);  
+});
+var mongoDatabase = builder.Services.BuildServiceProvider().GetRequiredService<IMongoDatabase>();
+await MongoDbSeederSevice.SeedAsync(mongoDatabase); 
 
 var redisConfiguration = builder.Configuration["REDIS_CONNECTIONSTRING"];
 var constantKey = "WebAppData";
@@ -125,7 +130,7 @@ app.MapPost("/api/players", async ([FromBody] Player player, IPlayerService play
 app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, IPlayerService playerService,
     ICacheService cacheService) =>
 {
-    var player = await playerService.GetAsync(id);
+    var player = await playerService.GetPlayerAsync(id);
     if(player is null)
         return Results.NotFound();
     await playerService.UpdateAsync(id, playerIn);
@@ -151,7 +156,7 @@ app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [Fro
 app.MapDelete("/api/players/{id:long}", async (long id, IPlayerService playerService,
     ICacheService cacheService) =>
 {
-    var player = await playerService.GetAsync(id);
+    var player = await playerService.GetPlayerAsync(id);
 
     await playerService.RemoveAsync(id);
     await cacheService.RemoveAsync($"{cacheKey}:{id}");  
@@ -215,5 +220,22 @@ app.MapGet("/api/players/referrer/{telegramId:long}", async (long telegramId, IP
     return Results.Ok(referrer);
 
 }).AllowAnonymous();
+app.MapGet("/api/players/ip/{playerId:long}", async (long playerId, IPlayerService playerService) =>
+{
+    var regionIp = await playerService.GetPlayerRegionIpAsync(playerId);
+    
+    return string.IsNullOrEmpty(regionIp) ? Results.NotFound()
+        : Results.Ok(new { RegionIp = regionIp });
+}).WithName("GetPlayerRegionIp").AllowAnonymous();
+
+app.MapPost("/api/players/region", async ([FromBody] SetRegionDto assignRegionDto, IPlayerService playerService) =>
+{
+    var success = await playerService.AssignRegionToPlayerAsync(assignRegionDto.PlayerId, assignRegionDto.RegionId);
+    
+    return !success ? Results.BadRequest()
+        : Results.Ok();
+}).WithName("SetRegionToPlayer").AllowAnonymous();
+
 
 app.Run();
+

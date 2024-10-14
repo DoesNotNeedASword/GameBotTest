@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "DhiKkhcE4CHfb91n8x03TVSDEAptCHDhPR7iRCLqyW5D2l8Ml8sI+TyJVAIyYffBidWl8D4Zo/OQI7CVf4Cutg==",
+  "dgSpecHash": "ieQ8JPAVXnpCWGjAAEk2Z0de4gsZ4u0ZcVbrsuWppDVwin5pzvulacNS3XVVbVY/J+EMK4Fl3tY8a630wtFxHQ==",
   "success": true,
   "projectFilePath": "E:\\Coding\\Projects\\C#\\GameBotTest\\GameBotTest\\GameBotTest.csproj",
   "expectedPackageFiles": [
@@ -19,7 +19,7 @@
     "C:\\Users\\legen\\.nuget\\packages\\microsoft.netcore.platforms\\5.0.0\\microsoft.netcore.platforms.5.0.0.nupkg.sha512",
     "C:\\Users\\legen\\.nuget\\packages\\microsoft.openapi\\1.4.3\\microsoft.openapi.1.4.3.nupkg.sha512",
     "C:\\Users\\legen\\.nuget\\packages\\microsoft.win32.registry\\5.0.0\\microsoft.win32.registry.5.0.0.nupkg.sha512",
-    "C:\\Users\\legen\\.nuget\\packages\\mongodb.bson\\2.28.0\\mongodb.bson.2.28.0.nupkg.sha512",
+    "C:\\Users\\legen\\.nuget\\packages\\mongodb.bson\\2.27.0\\mongodb.bson.2.27.0.nupkg.sha512",
     "C:\\Users\\legen\\.nuget\\packages\\mongodb.driver\\2.27.0\\mongodb.driver.2.27.0.nupkg.sha512",
     "C:\\Users\\legen\\.nuget\\packages\\mongodb.driver.core\\2.27.0\\mongodb.driver.core.2.27.0.nupkg.sha512",
     "C:\\Users\\legen\\.nuget\\packages\\mongodb.libmongocrypt\\1.10.0\\mongodb.libmongocrypt.1.10.0.nupkg.sha512",

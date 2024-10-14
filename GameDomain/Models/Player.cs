@@ -39,4 +39,8 @@ public class Player
     [Range(1, long.MaxValue, ErrorMessage = "ReferrerId must be a valid number greater than 0")]
     [BsonElement("ReferrerId")]
     public long ReferrerId { get; set; }
+
+    [BsonRepresentation(BsonType.Int64)]
+    [BsonElement("RegionId")]
+    public long RegionId { get; set; } = 1; // Ссылка на регион, может быть null
 }

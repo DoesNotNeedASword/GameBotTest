@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using GameDomain.Models;
+using Matchmaker.ApiClients;
 using Matchmaker.Interfaces;
 using Matchmaker.Models.Dto;
 using Matchmaker.Models.Records;
@@ -14,6 +15,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<IEdgegapService, EdgegapService>();
+builder.Services.AddHttpClient<IApiClient, ApiClient>();
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
@@ -70,7 +72,7 @@ app.MapGet("lobby/creator/{id:long}", (long id) =>
     return Results.Ok(lobby.Value);
 });
 
-app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest request, HttpContext context, IEdgegapService edgegapService) =>
+app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest request, IApiClient apiClient) =>
 {
     if (!lobbies.TryGetValue(lobbyId, out var lobby))
         return Results.NotFound("Lobby not found");
@@ -81,15 +83,18 @@ app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest 
     if (lobby.Players.Count >= maxPlayers)
         return Results.BadRequest("Lobby is full. Cannot add more players.");
 
-    // Получаем IP-адрес присоединяющегося игрока
-    var playerIp = edgegapService.GetClientIp(context);
+    var playerIp = await apiClient.GetPlayerRegionIpAsync(request.Player.TelegramId);
+
+    if (string.IsNullOrEmpty(playerIp))
+    {
+        return Results.Problem("Failed to retrieve player's IP.");
+    }
 
     lobby.Players.Add(request.Player);
     lobby.IpList.Add(playerIp); 
     await NotifyLobby(lobbyId, LobbyNotificationStatus.PlayerConnected, $"{request.Player.Name} has joined the lobby as a player.");
     return Results.Ok(lobby);
 });
-
 
 
 app.MapPost("/lobby/{lobbyId:long}/spectate", async (long lobbyId, JoinLobbyRequest request) =>
@@ -223,21 +228,21 @@ app.MapPost("/lobby/close/{lobbyId:long}", async (long lobbyId) =>
 
 
 
-app.MapPost("/lobby/closeGame", async (CloseGameRequest request, IEdgegapService edgegapService, HttpClient httpClient) =>
+app.MapPost("/lobby/closeGame", async (CloseGameRequest request, IApiClient apiClient) =>
 {
-    var result = await edgegapService.StopDeployment(request.RequestId);
-    var lobby = lobbies.
-        FirstOrDefault(l => l.Value.Players.
-            Any(p => p.TelegramId == request.Winner));
+    var lobby = lobbies.FirstOrDefault(l => l.Value.Players.Any(p => p.TelegramId == request.Winner));
+    if (lobby.Key == 0)
+    {
+        return Results.NotFound("Lobby not found.");
+    }
+    
     await CloseLobby(lobby.Key);
-    var winnerResponse = await httpClient.PutAsJsonAsync(
-        $"http://gameapi:8080/api/players/{request.Winner}/rating", 
-        1
-    );
 
-    return !winnerResponse.IsSuccessStatusCode ? 
-        Results.Problem($"Failed to update rating for the winner with Telegram ID {request.Winner}.") : 
-        Results.Ok(new { Winner = request.Winner, Losers = request.Losers });
+    var success = await apiClient.UpdatePlayerRatingAsync(request.Winner, 1);
+    
+    return success 
+        ? Results.Ok(new { Winner = request.Winner, Losers = request.Losers })
+        : Results.Problem($"Failed to update rating for the winner with Telegram ID {request.Winner}.");
 });
 
 app.Run();

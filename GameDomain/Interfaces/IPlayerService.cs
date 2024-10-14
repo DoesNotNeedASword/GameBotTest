@@ -1,4 +1,5 @@
 ﻿using GameDomain.Models;
+using GameDomain.Models.DTOs;
 
 namespace GameDomain.Interfaces;
 
@@ -12,7 +13,7 @@ public interface IPlayerService
     /// <summary>
     /// Получить игрока по TelegramId.
     /// </summary>
-    Task<Player?> GetAsync(long id);
+    Task<PlayerDto?> GetPlayerAsync(long id);
 
     /// <summary>
     /// Создать нового игрока.
@@ -48,4 +49,9 @@ public interface IPlayerService
     /// Получить пригласителя для данного игрока.
     /// </summary>
     Task<Player?> GetReferrerAsync(long playerId);
+
+    Task<string?> GetPlayerRegionIpAsync(long playerId);
+
+    Task<bool> AssignRegionToPlayerAsync(long playerId, int regionId);
+    Task<PlayerLobbyDto?> GetPlayerWithRegionIpAsync(long playerId);
 }

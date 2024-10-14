@@ -1,5 +1,6 @@
 ﻿using GameDomain.Interfaces;
 using GameDomain.Models;
+using GameDomain.Models.DTOs;
 using MongoDB.Driver;
 
 namespace GameAPI.Services;
@@ -7,6 +8,7 @@ namespace GameAPI.Services;
 public class PlayerService(IMongoDatabase database) : IPlayerService
 {
     private readonly IMongoCollection<Player> _players = database.GetCollection<Player>("Players");
+    private readonly IMongoCollection<Region> _regions = database.GetCollection<Region>("Regions");
 
     public async Task<List<Player>> GetAsync()
     {
@@ -15,10 +17,19 @@ public class PlayerService(IMongoDatabase database) : IPlayerService
         return list;
     }
 
-    public async Task<Player?> GetAsync(long id)
+    public async Task<PlayerDto?> GetPlayerAsync(long playerId)
     {
-        var cursor = await _players.FindAsync(player => player.TelegramId == id);
-        return await cursor.FirstOrDefaultAsync();
+        var projection = Builders<Player>.Projection.Expression(p => new PlayerDto
+        {
+            TelegramId = p.TelegramId,
+            Name = p.Name,
+            Level = p.Level,
+            Score = p.Score,
+            ReferrerId = p.ReferrerId,
+            RegionId = p.RegionId
+        });
+
+        return await _players.Find(p => p.TelegramId == playerId).Project(projection).FirstOrDefaultAsync();
     }
 
     public async Task<Player> CreateAsync(Player player)
@@ -82,5 +93,49 @@ public class PlayerService(IMongoDatabase database) : IPlayerService
         var referrerFilter = Builders<Player>.Filter.Eq(p => p.TelegramId, player.ReferrerId);
         return await _players.Find(referrerFilter).FirstOrDefaultAsync();
     }
+    public async Task<bool> AssignRegionToPlayerAsync(long playerId, int regionId)
+    {
+        var regionExists = await _regions.Find(r => r.RegionId == regionId).AnyAsync();
+        if (!regionExists)
+        {
+            throw new Exception("Region does not exist.");
+        }
+
+        var filter = Builders<Player>.Filter.Eq(p => p.TelegramId, playerId);
+        var update = Builders<Player>.Update.Set(p => p.RegionId, regionId);
+        var result = await _players.UpdateOneAsync(filter, update);
+        return result.ModifiedCount > 0;
+    }
+    
+    public async Task<string?> GetPlayerRegionIpAsync(long playerId)
+    {
+        var player = await _players.Find(p => p.TelegramId == playerId).Project(p => new { p.RegionId }).FirstOrDefaultAsync();
+        if (player == null) return null;
+
+        var region = await _regions.Find(r => r.RegionId == player.RegionId).Project(r => r.Ip).FirstOrDefaultAsync();
+        return region;
+    }
+    
+    
+    public async Task<PlayerLobbyDto?> GetPlayerWithRegionIpAsync(long playerId)
+    {
+        var player = await GetPlayerAsync(playerId);
+        if (player == null) return null;
+
+        var regionIp = await GetPlayerRegionIpAsync(playerId);
+        return new PlayerLobbyDto
+        {
+            TelegramId = player.TelegramId,
+            Name = player.Name,
+            Level = player.Level,
+            Score = player.Score,
+            ReferrerId = player.ReferrerId,
+            RegionId = player.RegionId,
+            RegionIp = regionIp
+        };
+    }
+
 }
+
+
 

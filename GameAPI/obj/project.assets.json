@@ -345,7 +345,7 @@
           }
         }
       },
-      "MongoDB.Bson/2.28.0": {
+      "MongoDB.Bson/2.27.0": {
         "type": "package",
         "dependencies": {
           "System.Memory": "4.5.5",
@@ -676,7 +676,7 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v8.0",
         "dependencies": {
-          "MongoDB.Bson": "2.28.0",
+          "MongoDB.Bson": "2.27.0",
           "MongoDB.Driver": "2.27.0"
         },
         "compile": {
@@ -1471,21 +1471,20 @@
         "version.txt"
       ]
     },
-    "MongoDB.Bson/2.28.0": {
-      "sha512": "yiWN3scVV0lYpFXn1CL4PB0BK3KrHFC44qw72+/cBIDS9+r9MQYfxFMxM+pAvnSssAZtQ7ZabCu7z3UOXqKy4w==",
+    "MongoDB.Bson/2.27.0": {
+      "sha512": "IZ0B3upRWzDkV9wWSJ4bO8BriYZ2ChjtBCHFGFglOVDZHjLz1D7Bmx2yAFQf/kWyieKD7s7xBLDywzezNX+NCw==",
       "type": "package",
-      "path": "mongodb.bson/2.28.0",
+      "path": "mongodb.bson/2.27.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
-        "README.md",
         "lib/net472/MongoDB.Bson.dll",
         "lib/net472/MongoDB.Bson.xml",
         "lib/netstandard2.0/MongoDB.Bson.dll",
         "lib/netstandard2.0/MongoDB.Bson.xml",
         "lib/netstandard2.1/MongoDB.Bson.dll",
         "lib/netstandard2.1/MongoDB.Bson.xml",
-        "mongodb.bson.2.28.0.nupkg.sha512",
+        "mongodb.bson.2.27.0.nupkg.sha512",
         "mongodb.bson.nuspec",
         "packageIcon.png"
       ]
@@ -1982,6 +1981,7 @@
       "Microsoft.AspNetCore.Authentication.JwtBearer >= 8.0.8",
       "Microsoft.AspNetCore.OpenApi >= 8.0.2",
       "Microsoft.Extensions.Caching.StackExchangeRedis >= 8.0.7",
+      "MongoDB.Bson >= 2.27.0",
       "MongoDB.Driver >= 2.27.0",
       "StackExchange.Redis >= 2.8.0",
       "Swashbuckle.AspNetCore >= 6.4.0"
@@ -2040,6 +2040,10 @@
           "Microsoft.Extensions.Caching.StackExchangeRedis": {
             "target": "Package",
             "version": "[8.0.7, )"
+          },
+          "MongoDB.Bson": {
+            "target": "Package",
+            "version": "[2.27.0, )"
           },
           "MongoDB.Driver": {
             "target": "Package",

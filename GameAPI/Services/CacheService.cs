@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 using GameDomain.Models;
+using GameDomain.Models.DTOs;
 
 namespace GameAPI.Services;
 
@@ -19,16 +20,16 @@ public class CacheService : ICacheService
         _cache = cache;
         _playerService = playerService;
     }
-    public async Task<Player?> GetPlayerAsync(long id)
+    public async Task<PlayerDto?> GetPlayerAsync(long id)
     {
         var cacheKey = $"{PlayerKeyPrefix}{id}";
         var cachedPlayer = await _cache.GetStringAsync(cacheKey);
         if (!string.IsNullOrEmpty(cachedPlayer))
         {
-            return JsonSerializer.Deserialize<Player>(cachedPlayer);
+            return JsonSerializer.Deserialize<PlayerDto>(cachedPlayer);
         }
 
-        var player = await _playerService.GetAsync(id);
+        var player = await _playerService.GetPlayerAsync(id);
         await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(player), new DistributedCacheEntryOptions { SlidingExpiration = TimeSpan.FromHours(1) });
         return player;
     }
