@@ -228,13 +228,22 @@ app.MapGet("/api/players/ip/{playerId:long}", async (long playerId, IPlayerServi
         : Results.Ok(new { RegionIp = regionIp });
 }).WithName("GetPlayerRegionIp").AllowAnonymous();
 
-app.MapPost("/api/players/region", async ([FromBody] SetRegionDto assignRegionDto, IPlayerService playerService) =>
+app.MapPost("/api/players/region", async ([FromBody] SetRegionDto assignRegionDto, IPlayerService playerService, ICacheService cacheService) =>
 {
     var success = await playerService.AssignRegionToPlayerAsync(assignRegionDto.PlayerId, assignRegionDto.RegionId);
-    
-    return !success ? Results.BadRequest()
-        : Results.Ok();
+
+    if (!success) return Results.BadRequest();
+    var player = await playerService.GetPlayerAsync(assignRegionDto.PlayerId);
+        
+    if (player != null)
+    {
+        await cacheService.SetAsync($"player:{player.TelegramId}", JsonSerializer.Serialize(player));
+    }
+
+    return Results.Ok();
+
 }).WithName("SetRegionToPlayer").AllowAnonymous();
+
 
 
 app.Run();
