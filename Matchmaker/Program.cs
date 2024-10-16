@@ -33,7 +33,7 @@ const int maxPlayers = 2;
 const int heartbeatIntervalSeconds = 30;
 
 
-app.MapPost("/lobby/create", (CreateLobbyRequest request, HttpContext context, IEdgegapService edgegapService) =>
+app.MapPost("/lobby/create", async (CreateLobbyRequest request, IApiClient apiClient) =>
 {
     var existingLobby = lobbies.Values.FirstOrDefault(lobby =>
         lobby.Players.Any(player => player.TelegramId == request.Creator.TelegramId) ||
@@ -45,9 +45,12 @@ app.MapPost("/lobby/create", (CreateLobbyRequest request, HttpContext context, I
         return Results.Ok(existingLobby);
     }
     
-    var creatorIp = edgegapService.GetClientIp(context);
-    var lobbyId = GenerateLobbyId();
-    var lobby = new Lobby(lobbyId, creatorIp, request.Creator, request.LobbyName, request.Password);
+    var playerIp = await apiClient.GetPlayerRegionIpAsync(request.Creator.TelegramId);    var lobbyId = GenerateLobbyId();
+    if (string.IsNullOrEmpty(playerIp))
+    {
+        return Results.Problem("Failed to retrieve player's IP.");
+    }
+    var lobby = new Lobby(lobbyId, playerIp, request.Creator, request.LobbyName, request.Password);
     lobbies[lobbyId] = lobby;
     lobbyConnections[lobbyId] = new ConcurrentDictionary<long, WebSocket>();
     return Results.Ok(lobby);
