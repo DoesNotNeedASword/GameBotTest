@@ -8,12 +8,15 @@ using Matchmaker.Models.Dto;
 using Matchmaker.Models.Records;
 using Matchmaker.Models.Requests;
 using Matchmaker.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
+builder.Services.AddSignalR();
 builder.Services.AddHttpClient<IEdgegapService, EdgegapService>();
 builder.Services.AddHttpClient<IApiClient, ApiClient>();
 
@@ -31,7 +34,7 @@ var lobbies = new ConcurrentDictionary<long, Lobby>();
 var lobbyConnections = new ConcurrentDictionary<long, ConcurrentDictionary<long, WebSocket>>(); // that's sucks...
 const int maxPlayers = 2;
 const int heartbeatIntervalSeconds = 30;
-
+app.MapHub<LobbyHub>("/lobby/hub");
 
 app.MapPost("/lobby/create", async (CreateLobbyRequest request, IApiClient apiClient) =>
 {
@@ -246,6 +249,13 @@ app.MapPost("/lobby/closeGame", async (CloseGameRequest request, IApiClient apiC
     return success 
         ? Results.Ok(new { Winner = request.Winner, Losers = request.Losers })
         : Results.Problem($"Failed to update rating for the winner with Telegram ID {request.Winner}.");
+});
+
+// Endpoint for sending message to spectators
+app.MapPost("/lobby/notify/{lobbyId:long}", async (long lobbyId, [FromBody] string message, IHubContext<LobbyHub> hubContext) =>
+{
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveMessage", message);
+    return Results.Ok();
 });
 
 app.Run();
