@@ -11,7 +11,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    // ping per 2 minutes
+    options.KeepAliveInterval = TimeSpan.FromMinutes(2);
+    options.ClientTimeoutInterval = TimeSpan.FromMinutes(5);
+});
 builder.Services.AddHttpClient<IEdgegapService, EdgegapService>();
 builder.Services.AddHttpClient<IApiClient, ApiClient>();
 
