@@ -254,7 +254,7 @@ app.MapPost("/lobby/closeGame", async (CloseGameRequest request, IApiClient apiC
 // Endpoint for sending message to spectators
 app.MapPost("/lobby/notify/{lobbyId:long}", async (long lobbyId, [FromBody] string message, IHubContext<LobbyHub> hubContext) =>
 {
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveMessage", message);
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveMessage", new SpectatorNotificationDto(message));
     return Results.Ok();
 });
 

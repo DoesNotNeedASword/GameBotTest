@@ -1,24 +1,40 @@
-﻿namespace Matchmaker.Services;
+﻿using Matchmaker.Models.Dto;
+
+namespace Matchmaker.Services;
 
 using Microsoft.AspNetCore.SignalR;
 using System.Threading.Tasks;
 
 public class LobbyHub : Hub
 {
-    public async Task JoinLobby(string lobbyId)
+    public override async Task OnConnectedAsync()
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, lobbyId);
-        await Clients.Group(lobbyId).SendAsync("ReceiveMessage", $"Player joined lobby {lobbyId}");
+        var lobbyId = Context.GetHttpContext()?.Request.Query["lobbyId"].ToString();
+
+        if (!string.IsNullOrEmpty(lobbyId))
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, lobbyId);
+
+            await Clients.Group(lobbyId).SendAsync("ReceiveMessage", $"Player joined lobby {lobbyId}");
+        }
+
+        await base.OnConnectedAsync();
     }
 
-    public async Task LeaveLobby(string lobbyId)
+    public override async Task OnDisconnectedAsync(Exception exception)
     {
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyId);
-        await Clients.Group(lobbyId).SendAsync("ReceiveMessage", $"Player left lobby {lobbyId}");
+        var lobbyId = Context.GetHttpContext()?.Request.Query["lobbyId"].ToString();
+
+        if (!string.IsNullOrEmpty(lobbyId))
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyId);
+        }
+
+        await base.OnDisconnectedAsync(exception);
     }
 
     public async Task SendLobbyMessage(string lobbyId, string message)
     {
-        await Clients.Group(lobbyId).SendAsync("ReceiveMessage", message);
+        await Clients.Group(lobbyId).SendAsync("ReceiveMessage", new SpectatorNotificationDto(message));
     }
 }
