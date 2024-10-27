@@ -100,6 +100,12 @@ app.MapGet("lobby/any", async (ILobbyCacheService lobbyCacheService) =>
     return availableLobby != null ? Results.Ok(availableLobby) : Results.NotFound("No available lobby found");
 });
 
+app.MapPost("/lobby", async (string? filter, ILobbyCacheService lobbyCacheService) =>
+{
+    var result = await lobbyCacheService.GetAllLobbiesAsync(filter);
+    return Results.Ok(result);
+});
+
 app.MapGet("lobby/{id:long}", async (long id, ILobbyCacheService lobbyCacheService) =>
 {
     var lobby = await lobbyCacheService.GetLobbyAsync(id);

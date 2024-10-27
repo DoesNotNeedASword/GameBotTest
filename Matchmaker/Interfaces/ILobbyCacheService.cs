@@ -15,4 +15,5 @@ public interface ILobbyCacheService
     Task RemovePlayerLobbyAsync(string playerLobbyKey);
     Task<long?> GetPlayerLobbyAsync(string playerLobbyKey);
     Task<Lobby?> GetLobbyByCreatorIdAsync(long id);
+    Task<List<Lobby>> GetAllLobbiesAsync(string? filter = null);
 }

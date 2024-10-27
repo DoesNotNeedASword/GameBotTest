@@ -27,16 +27,34 @@ public class LobbyCacheService : ILobbyCacheService
         var lobbyJson = JsonSerializer.Serialize(lobby);
         await _redisDb.StringSetAsync($"{LobbyKeyPrefix}{lobby.Id}", lobbyJson);
 
-        // Сохранение связи creatorId -> lobbyId
         await SaveCreatorLobbyAsync(lobby.Players.First().TelegramId, lobby.Id);
     }
+    
+    public async Task<List<Lobby>> GetAllLobbiesAsync(string? filter = null)
+    {
+        var server = _redisDb.Multiplexer.GetServer(_redisDb.Multiplexer.GetEndPoints().First());
+        var keys = server.Keys(pattern: "lobby:*");
+    
+        var lobbies = new List<Lobby>();
 
+        foreach (var key in keys)
+        {
+            var lobbyJson = await _redisDb.StringGetAsync(key);
+            if (string.IsNullOrEmpty(lobbyJson)) continue;
+            var lobby = JsonSerializer.Deserialize<Lobby>(lobbyJson);
+            if (lobby != null && (filter == null || lobby.LobbyName.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+            {
+                lobbies.Add(lobby);
+            }
+        }
+
+        return lobbies;
+    }
     public async Task DeleteLobbyAsync(long lobbyId)
     {
         var lobby = await GetLobbyAsync(lobbyId);
         if (lobby != null)
         {
-            // Удаление связи creatorId -> lobbyId
             await _redisDb.KeyDeleteAsync($"{CreatorLobbyKeyPrefix}{lobby.Players.First().TelegramId}");
         }
 
