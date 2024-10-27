@@ -8,7 +8,6 @@ public class UpdateHandler(CommandParser commandParser, CommandHandler commandHa
 {
     public Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
-        Console.WriteLine("Received an update!");
         if (update.Message?.Text == null) return Task.CompletedTask;
 
         var context = new Context
