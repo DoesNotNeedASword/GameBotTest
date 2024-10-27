@@ -17,8 +17,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<IEdgegapService, EdgegapService>();
 builder.Services.AddHttpClient<IApiClient, ApiClient>();
-
 var redisConfiguration = builder.Configuration["REDIS_CONNECTIONSTRING"]!;
+var multiplexer = ConnectionMultiplexer.Connect(redisConfiguration);
+builder.Services.AddSingleton<IConnectionMultiplexer>(multiplexer);
 builder.Services.AddSignalR().AddStackExchangeRedis(redisConfiguration); 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -28,7 +29,6 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddScoped<ILobbyCacheService, LobbyCacheService>();
 
 const int maxPlayers = 2;
-const int heartbeatIntervalSeconds = 30;
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
