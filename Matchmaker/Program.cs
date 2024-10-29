@@ -1,14 +1,11 @@
-using System.Text;
 using GameDomain.Models;
 using Matchmaker.ApiClients;
 using Matchmaker.Interfaces;
 using Matchmaker.Models.Dto;
 using Matchmaker.Models.Records;
-using Matchmaker.Models.Requests;
 using Matchmaker.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Newtonsoft.Json;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -142,13 +139,16 @@ app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId, IEdgegapService 
     if (lobby.Players.Count != maxPlayers)
         return Results.BadRequest("Lobby must have exactly 2 players to start the game");
 
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveMessage", "Game is starting...");
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", new LobbyNotificationDto((int)LobbyNotificationStatus.GameIsStarting, "Game is starting..."));
 
     var connectionDetails = await StartConnectionAttempt(lobbyId, lobby, edgegapService, lobby.IpList);
     if (connectionDetails != null)
+    {
+        await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", new LobbyNotificationDto((int)LobbyNotificationStatus.GameStarted, "Game started"));
         return Results.Ok("Game started");
+    }
 
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveMessage", "Failed to start the game.");
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", new LobbyNotificationDto((int)LobbyNotificationStatus.WebSocketError, "Failed to start the game"));
     return Results.Problem("Failed to start game");
 });
 
@@ -158,35 +158,24 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request, ILobbyCacheService
     if (lobby == null) return Results.NotFound("Lobby not found");
 
     var player = lobby.Players.FirstOrDefault(p => p.TelegramId == request.PlayerId);
-    if (player != null)
-    {
-        lobby.Players.Remove(player);
-        await lobbyCacheService.UpdateLobbyPlayerCountAsync(request.LobbyId, lobby.Players.Count);
-        await lobbyCacheService.SaveLobbyAsync(lobby);
-        await hubContext.Clients.Group(request.LobbyId.ToString()).SendAsync("ReceiveMessage", $"{player.Name} has left the lobby.");
-    }
-    else
-    {
-        return Results.BadRequest("Player not found in the lobby");
-    }
+    if (player == null) return Results.Ok("Player left the lobby");
+    lobby.Players.Remove(player);
+    await lobbyCacheService.UpdateLobbyPlayerCountAsync(request.LobbyId, lobby.Players.Count);
+    await lobbyCacheService.SaveLobbyAsync(lobby);
 
-    if (lobby.Players.Count == 0 && lobby.Spectators.Count == 0)
-    {
-        await lobbyCacheService.DeleteLobbyAsync(request.LobbyId);
-        return Results.Ok("Last player left the lobby, lobby is closed.");
-    }
-
-    var playerLobbyKey = $"playerLobby:{request.PlayerId}";
-    await lobbyCacheService.RemovePlayerLobbyAsync(playerLobbyKey);
+    var notification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerDisconnected, $"{player.Name} has left the lobby");
+    await hubContext.Clients.Group(request.LobbyId.ToString()).SendAsync("ReceiveNotification", notification);
 
     return Results.Ok("Player left the lobby");
 });
 
 app.MapPost("/lobby/notify/{lobbyId:long}", async (long lobbyId, [FromBody] string message, IHubContext<LobbyHub> hubContext) =>
 {
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveMessage", message);
+    var notification = new LobbyNotificationDto((int)LobbyNotificationStatus.WebSocketError, message);
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", notification);
     return Results.Ok();
 });
+
 
 app.MapPost("/lobby/close/{lobbyId:long}", async (long lobbyId, ILobbyCacheService lobbyCacheService, IHubContext<LobbyHub> hubContext) =>
 {
