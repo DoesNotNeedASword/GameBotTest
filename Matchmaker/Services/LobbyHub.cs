@@ -4,13 +4,13 @@ namespace Matchmaker.Services;
 
 using Microsoft.AspNetCore.SignalR;
 using System.Threading.Tasks;
-
+using Newtonsoft.Json;
 public class LobbyHub : Hub
 {
     public override async Task OnConnectedAsync()
     {
         var lobbyId = Context.GetHttpContext()?.Request.Query["lobbyId"].ToString();
-
+        
         if (!string.IsNullOrEmpty(lobbyId))
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, lobbyId);
@@ -32,11 +32,13 @@ public class LobbyHub : Hub
 
         await base.OnDisconnectedAsync(exception);
     }
-
+    
     public async Task SendLobbyNotification(string lobbyId, LobbyNotificationDto notification)
     {
-        await Clients.Group(lobbyId).SendAsync("ReceiveNotification", notification);
+        var serializedNotification = JsonConvert.SerializeObject(notification);
+        await Clients.Group(lobbyId).SendAsync("ReceiveNotification", serializedNotification);
     }
+
 
     public async Task SendLobbyMessage(string lobbyId, string message)
     {

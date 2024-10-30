@@ -6,6 +6,7 @@ using Matchmaker.Models.Records;
 using Matchmaker.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Newtonsoft.Json;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -172,9 +173,16 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request, ILobbyCacheService
 app.MapPost("/lobby/notify/{lobbyId:long}", async (long lobbyId, [FromBody] string message, IHubContext<LobbyHub> hubContext) =>
 {
     var notification = new LobbyNotificationDto((int)LobbyNotificationStatus.WebSocketError, message);
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", notification);
+    
+    // Сериализация объекта в JSON
+    var serializedNotification = JsonConvert.SerializeObject(notification);
+    
+    // Отправка JSON строки клиентам в группе
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", serializedNotification);
+    
     return Results.Ok();
 });
+
 
 
 app.MapPost("/lobby/close/{lobbyId:long}", async (long lobbyId, ILobbyCacheService lobbyCacheService, IHubContext<LobbyHub> hubContext) =>
