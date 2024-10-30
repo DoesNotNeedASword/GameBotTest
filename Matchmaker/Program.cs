@@ -87,7 +87,8 @@ app.MapPost("/lobby/{lobbyId:long}/join", async (long lobbyId, JoinLobbyRequest 
     await lobbyCacheService.SaveLobbyAsync(lobby);
     await lobbyCacheService.UpdateLobbyPlayerCountAsync(lobbyId, lobby.Players.Count);
     
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveMessage", $"{request.Player.Name} has joined the lobby as a player.");
+    var notification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerConnected, $"{request.Player.Name} has joined the lobby as a player.");
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(notification));
     
     return Results.Ok(lobby);
 });
@@ -127,7 +128,8 @@ app.MapPost("/lobby/{lobbyId:long}/spectate", async (long lobbyId, JoinLobbyRequ
     lobby.Spectators.Add(request.Player);
     await lobbyCacheService.SaveLobbyAsync(lobby);
 
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveMessage", $"{request.Player.Name} has joined the lobby as a spectator.");
+    var notification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerConnected, $"{request.Player.Name} has joined the lobby as a spectator.");
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(notification));
 
     return Results.Ok(lobby);
 });
@@ -140,16 +142,19 @@ app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId, IEdgegapService 
     if (lobby.Players.Count != maxPlayers)
         return Results.BadRequest("Lobby must have exactly 2 players to start the game");
 
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", new LobbyNotificationDto((int)LobbyNotificationStatus.GameIsStarting, "Game is starting..."));
+    var startNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.GameIsStarting, "Game is starting...");
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(startNotification));
 
     var connectionDetails = await StartConnectionAttempt(lobbyId, lobby, edgegapService, lobby.IpList);
     if (connectionDetails != null)
     {
-        await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", new LobbyNotificationDto((int)LobbyNotificationStatus.GameStarted, "Game started"));
+        var gameStartedNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.GameStarted, "Game started");
+        await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(gameStartedNotification));
         return Results.Ok("Game started");
     }
 
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", new LobbyNotificationDto((int)LobbyNotificationStatus.WebSocketError, "Failed to start the game"));
+    var errorNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.WebSocketError, "Failed to start the game");
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(errorNotification));
     return Results.Problem("Failed to start game");
 });
 
@@ -164,31 +169,27 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request, ILobbyCacheService
     await lobbyCacheService.UpdateLobbyPlayerCountAsync(request.LobbyId, lobby.Players.Count);
     await lobbyCacheService.SaveLobbyAsync(lobby);
 
-    var notification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerDisconnected, $"{player.Name} has left the lobby");
-    await hubContext.Clients.Group(request.LobbyId.ToString()).SendAsync("ReceiveNotification", notification);
+    var leaveNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerDisconnected, $"{player.Name} has left the lobby");
+    await hubContext.Clients.Group(request.LobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(leaveNotification));
 
     return Results.Ok("Player left the lobby");
 });
 
 app.MapPost("/lobby/notify/{lobbyId:long}", async (long lobbyId, [FromBody] string message, IHubContext<LobbyHub> hubContext) =>
 {
-    var notification = new LobbyNotificationDto((int)LobbyNotificationStatus.WebSocketError, message);
-    
-    // Сериализация объекта в JSON
-    var serializedNotification = JsonConvert.SerializeObject(notification);
-    
-    // Отправка JSON строки клиентам в группе
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", serializedNotification);
+    var notification = new LobbyNotificationDto((int)LobbyNotificationStatus.Heartbeat, message);
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(notification));
     
     return Results.Ok();
 });
 
-
-
 app.MapPost("/lobby/close/{lobbyId:long}", async (long lobbyId, ILobbyCacheService lobbyCacheService, IHubContext<LobbyHub> hubContext) =>
 {
     await lobbyCacheService.DeleteLobbyAsync(lobbyId);
-    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveMessage", "Lobby has been closed.");
+    
+    var closeNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.LobbyClosed, "Lobby has been closed.");
+    await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(closeNotification));
+    
     return Results.Ok("Lobby closed successfully.");
 });
 
