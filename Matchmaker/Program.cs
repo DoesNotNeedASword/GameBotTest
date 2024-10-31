@@ -18,7 +18,12 @@ builder.Services.AddHttpClient<IApiClient, ApiClient>();
 var redisConfiguration = builder.Configuration["REDIS_CONNECTIONSTRING"]!;
 var multiplexer = ConnectionMultiplexer.Connect(redisConfiguration);
 builder.Services.AddSingleton<IConnectionMultiplexer>(multiplexer);
-builder.Services.AddSignalR().AddStackExchangeRedis(redisConfiguration); 
+builder.Services.AddSignalR(options =>
+{
+    options.KeepAliveInterval = TimeSpan.FromSeconds(30); 
+    options.ClientTimeoutInterval = TimeSpan.FromMinutes(5); 
+}).AddStackExchangeRedis(redisConfiguration);
+
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = redisConfiguration;
@@ -173,6 +178,7 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request, ILobbyCacheService
     var player = lobby.Players.FirstOrDefault(p => p.TelegramId == request.PlayerId);
     if (player == null) return Results.Ok("Player left the lobby");
     lobby.Players.Remove(player);
+
     if (lobby.Players.Count == 0)
     {
         await lobbyCacheService.DeleteLobbyAsync(request.LobbyId);
@@ -183,11 +189,15 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request, ILobbyCacheService
         await lobbyCacheService.SaveLobbyAsync(lobby);
     }
 
+    var playerLobbyKey = $"playerLobby:{request.PlayerId}";
+    await lobbyCacheService.RemovePlayerLobbyAsync(playerLobbyKey);
+
     var leaveNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerDisconnected, $"{player.Name} has left the lobby");
     await hubContext.Clients.Group(request.LobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(leaveNotification));
 
     return Results.Ok("Player left the lobby");
 });
+
 
 app.MapPost("/lobby/notify/{lobbyId:long}", async (long lobbyId, [FromBody] string message, IHubContext<LobbyHub> hubContext) =>
 {
