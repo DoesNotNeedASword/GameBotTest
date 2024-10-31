@@ -29,6 +29,13 @@ builder.Services.AddScoped<ILobbyCacheService, LobbyCacheService>();
 const int maxPlayers = 2;
 
 var app = builder.Build();
+var lifetime = app.Lifetime;
+lifetime.ApplicationStopping.Register(() => 
+{
+    var db = multiplexer.GetDatabase();
+    db.Execute("FLUSHDB");
+    Console.WriteLine("All Redis data has been cleared.");
+});
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
