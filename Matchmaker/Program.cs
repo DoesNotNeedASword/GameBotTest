@@ -177,8 +177,11 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request, ILobbyCacheService
     {
         await lobbyCacheService.DeleteLobbyAsync(request.LobbyId);
     }
-    await lobbyCacheService.UpdateLobbyPlayerCountAsync(request.LobbyId, lobby.Players.Count);
-    await lobbyCacheService.SaveLobbyAsync(lobby);
+    else
+    {
+        await lobbyCacheService.UpdateLobbyPlayerCountAsync(request.LobbyId, lobby.Players.Count);
+        await lobbyCacheService.SaveLobbyAsync(lobby);
+    }
 
     var leaveNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.PlayerDisconnected, $"{player.Name} has left the lobby");
     await hubContext.Clients.Group(request.LobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(leaveNotification));
