@@ -76,9 +76,15 @@ public class LobbyCacheService : ILobbyCacheService
 
     public async Task UpdateLobbyPlayerCountAsync(long lobbyId, int playerCount)
     {
-        await _redisDb.SortedSetAddAsync(LobbySortedSetKey, lobbyId.ToString(), playerCount);
+        if (playerCount > 0)
+        {
+            await _redisDb.SortedSetAddAsync(LobbySortedSetKey, lobbyId.ToString(), playerCount);
+        }
+        else
+        {
+            await DeleteLobbyAsync(lobbyId);
+        }
     }
-
     public async Task DeleteLobbyPlayerCountAsync(long lobbyId)
     {
         await _redisDb.SortedSetRemoveAsync(LobbySortedSetKey, lobbyId.ToString());
