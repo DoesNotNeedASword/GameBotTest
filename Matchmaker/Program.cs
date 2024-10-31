@@ -173,6 +173,10 @@ app.MapPost("/lobby/leave", async (LeaveLobbyRequest request, ILobbyCacheService
     var player = lobby.Players.FirstOrDefault(p => p.TelegramId == request.PlayerId);
     if (player == null) return Results.Ok("Player left the lobby");
     lobby.Players.Remove(player);
+    if (lobby.Players.Count == 0)
+    {
+        await lobbyCacheService.DeleteLobbyAsync(request.LobbyId);
+    }
     await lobbyCacheService.UpdateLobbyPlayerCountAsync(request.LobbyId, lobby.Players.Count);
     await lobbyCacheService.SaveLobbyAsync(lobby);
 
