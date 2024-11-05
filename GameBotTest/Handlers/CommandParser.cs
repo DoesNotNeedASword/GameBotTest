@@ -9,8 +9,8 @@ public class CommandParser
         if (!messageText.StartsWith("/start"))
             return messageText switch
             {
-                "запустить mini app" => "startMiniApp",
-                "присоединиться к комьюнити" => "joinCommunity",
+                "Launch mini app" => "startMiniApp",
+                "Join community" => "joinCommunity",
                 _ => "unknown"
             };
         var code = GetCodeFromStartCommand(messageText);
