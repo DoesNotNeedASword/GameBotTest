@@ -61,7 +61,7 @@ public class EdgegapService : IEdgegapService
             var responseData = await response.Content.ReadFromJsonAsync<EdgegapStatusResponse>(_jsonOptions);
             if (responseData?.Running != true) return (null, null);
 
-            var externalPort = responseData.Ports["Game Port"].External;
+            var externalPort = responseData.Ports["GamePort"].External;
             var dns = responseData.Fqdn;
             return (dns, externalPort);
         }

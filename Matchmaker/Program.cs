@@ -16,7 +16,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<IEdgegapService, EdgegapService>();
 builder.Services.AddHttpClient<IApiClient, ApiClient>();
 var redisConfiguration = builder.Configuration["REDIS_CONNECTIONSTRING"]!;
-var multiplexer = ConnectionMultiplexer.Connect(redisConfiguration);
+var multiplexer = await ConnectionMultiplexer.ConnectAsync(redisConfiguration);
 builder.Services.AddSingleton<IConnectionMultiplexer>(multiplexer);
 builder.Services.AddSignalR(options =>
 {
@@ -160,7 +160,7 @@ app.MapPost("/lobby/{lobbyId:long}/start", async (long lobbyId, IEdgegapService 
     var connectionDetails = await StartConnectionAttempt(lobbyId, lobby, edgegapService, lobby.IpList);
     if (connectionDetails != null)
     {
-        var gameStartedNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.GameStarted, "Game started");
+        var gameStartedNotification = new LobbyNotificationDto((int)LobbyNotificationStatus.GameStarted, connectionDetails);
         await hubContext.Clients.Group(lobbyId.ToString()).SendAsync("ReceiveNotification", JsonConvert.SerializeObject(gameStartedNotification));
         return Results.Ok("Game started");
     }
