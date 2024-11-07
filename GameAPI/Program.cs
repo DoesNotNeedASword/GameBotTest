@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Web;
 using GameAPI.Models;
+using GameAPI.Models.DTO;
 using GameAPI.Options;
 using GameAPI.Services;
 using GameAPI.Verification.Model;
@@ -72,11 +73,16 @@ BsonClassMap.RegisterClassMap<Region>(cm =>
     cm.AutoMap();
     cm.SetIgnoreExtraElements(true);  
 });
+BsonClassMap.RegisterClassMap<EnergyStation>(cm =>
+{
+    cm.AutoMap();
+    cm.SetIgnoreExtraElements(true);  
+});
 var mongoDatabase = builder.Services.BuildServiceProvider().GetRequiredService<IMongoDatabase>();
 await MongoDbSeederSevice.SeedAsync(mongoDatabase); 
 
 var redisConfiguration = builder.Configuration["REDIS_CONNECTIONSTRING"];
-var constantKey = "WebAppData";
+const string constantKey = "WebAppData";
 var botToken = builder.Configuration["BOT_TOKEN"]!;
 builder.Services.AddStackExchangeRedisCache(cacheOptions =>
 {
@@ -84,6 +90,7 @@ builder.Services.AddStackExchangeRedisCache(cacheOptions =>
     cacheOptions.InstanceName = "SampleInstance";
 });
 builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection("Redis"));
+builder.Services.AddScoped<IEnergyService, EnergyService>();
 builder.Services.AddScoped<IPlayerService, PlayerService>();
 builder.Services.AddScoped<ICacheService, CacheService>(provider => 
     new CacheService(provider.GetRequiredService<IDistributedCache>(), provider.GetRequiredService<IPlayerService>()));
@@ -130,7 +137,7 @@ app.MapPost("/api/players", async ([FromBody] Player player, IPlayerService play
 app.MapPut("/api/players/{id:long}", async (long id, Player playerIn, IPlayerService playerService,
     ICacheService cacheService) =>
 {
-    var player = await playerService.GetPlayerAsync(id);
+    var player = await cacheService.GetPlayerAsync(id);
     if(player is null)
         return Results.NotFound();
     await playerService.UpdateAsync(id, playerIn);
@@ -142,22 +149,15 @@ app.MapPut("/api/players/{telegramId:long}/rating", async (long telegramId, [Fro
 {
     var success = await playerService.UpdateRatingAsync(telegramId, ratingChange);
 
-    if (success)
-    {
-        await cacheService.RemoveAsync(cacheKey);  
-        return Results.Ok();
-    }
-    else
-    {
-        return Results.NotFound($"Player with Telegram ID {telegramId} not found.");
-    }
+    if (!success) return Results.NotFound($"Player with Telegram ID {telegramId} not found.");
+    await cacheService.RemoveAsync(cacheKey);  
+    return Results.Ok();
+
 }).AllowAnonymous();
 
 app.MapDelete("/api/players/{id:long}", async (long id, IPlayerService playerService,
     ICacheService cacheService) =>
 {
-    var player = await playerService.GetPlayerAsync(id);
-
     await playerService.RemoveAsync(id);
     await cacheService.RemoveAsync($"{cacheKey}:{id}");  
     return Results.NoContent();
@@ -243,6 +243,24 @@ app.MapPost("/api/players/region", async ([FromBody] SetRegionDto assignRegionDt
     return Results.Ok();
 
 }).WithName("SetRegionToPlayer").AllowAnonymous();
+
+app.MapPost("/api/player/energy/refill/{playerId:long}", async (long playerId, IEnergyService energyService) =>
+{
+    var success = await energyService.RefillEnergyAsync(playerId);
+    return success ? Results.Ok("Energy refilled") : Results.BadRequest("Cannot refill energy yet.");
+}).WithName("RefillEnergy");
+
+app.MapPost("/api/player/energy/upgrade/{playerId:long}", async (long playerId, IEnergyService energyService) =>
+{
+    var success = await energyService.UpgradeRefillStationAsync(playerId);
+    return success ? Results.Ok("Energy station upgraded") : Results.BadRequest("Upgrade failed.");
+}).WithName("UpgradeEnergyStation");
+
+app.MapPut("/api/player/energy/consume", async ([FromBody] ConsumeEnergyDto dto, [FromServices] IEnergyService energyService) =>
+{
+    var player = await energyService.ConsumeEnergy(dto.PlayerId, dto.Value);
+    return player is null ? Results.Ok(player) : Results.BadRequest("Upgrade failed.");
+}).WithName("ConsumeEnergy");
 
 
 
