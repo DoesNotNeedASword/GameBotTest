@@ -5,7 +5,7 @@ using MongoDB.Driver;
 
 namespace GameAPI.Services;
 
-public class PlayerService(IMongoDatabase database) : IPlayerService
+public class PlayerService(IMongoDatabase database, IEnergyService energyService) : IPlayerService
 {
     private readonly IMongoCollection<Player> _players = database.GetCollection<Player>("Players");
     private readonly IMongoCollection<Region> _regions = database.GetCollection<Region>("Regions");
@@ -19,17 +19,8 @@ public class PlayerService(IMongoDatabase database) : IPlayerService
 
     public async Task<PlayerDto?> GetPlayerAsync(long playerId)
     {
-        var projection = Builders<Player>.Projection.Expression(p => new PlayerDto
-        {
-            TelegramId = p.TelegramId,
-            Name = p.Name,
-            Level = p.Level,
-            Score = p.Score,
-            ReferrerId = p.ReferrerId,
-            RegionId = p.RegionId
-        });
-
-        return await _players.Find(p => p.TelegramId == playerId).Project(projection).FirstOrDefaultAsync();
+        var player = await _players.Find(p => p.TelegramId == playerId).FirstOrDefaultAsync();
+        return player is null ? null : new PlayerDto(player);
     }
 
     public async Task<Player> CreateAsync(Player player)
@@ -48,8 +39,11 @@ public class PlayerService(IMongoDatabase database) : IPlayerService
                 throw new Exception("Referral ID does not correspond to any existing player.");
             }
         }
-        
+    
         await _players.InsertOneAsync(player);
+        
+        await energyService.CreateAsync(player.TelegramId);
+
         return player;
     }
 

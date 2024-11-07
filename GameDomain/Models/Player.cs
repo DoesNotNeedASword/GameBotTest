@@ -29,12 +29,14 @@ public class Player
     public int Rating { get; set; } = 0;
 
     [Range(0, int.MaxValue, ErrorMessage = "SoftCurrency must be a non-negative number")]
+    [BsonRepresentation(BsonType.Int64)]
     [BsonElement("SoftCurrency")]
-    public int SoftCurrency { get; set; } = 0;
+    public long SoftCurrency { get; set; } = 0;
 
     [Range(0, int.MaxValue, ErrorMessage = "HardCurrency must be a non-negative number")]
+    [BsonRepresentation(BsonType.Int64)]
     [BsonElement("HardCurrency")]
-    public int HardCurrency { get; set; } = 0;
+    public long HardCurrency { get; set; } = 0;
 
     [Range(1, long.MaxValue, ErrorMessage = "ReferrerId must be a valid number greater than 0")]
     [BsonElement("ReferrerId")]
@@ -43,4 +45,10 @@ public class Player
     [BsonRepresentation(BsonType.Int64)]
     [BsonElement("RegionId")]
     public long RegionId { get; set; } = 1; // Ссылка на регион, может быть null
+    
+    [BsonElement("CurrentEnergy")]
+    public int CurrentEnergy { get; set; } = 100;
+
+    [BsonElement("MaxEnergy")]
+    public int MaxEnergy { get; set; } = 100;
 }
