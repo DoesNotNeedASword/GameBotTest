@@ -44,11 +44,23 @@ public class Player
 
     [BsonRepresentation(BsonType.Int64)]
     [BsonElement("RegionId")]
-    public long RegionId { get; set; } = 1; // Ссылка на регион, может быть null
+    public long RegionId { get; set; } = 1; 
     
     [BsonElement("CurrentEnergy")]
     public int CurrentEnergy { get; set; } = 100;
 
     [BsonElement("MaxEnergy")]
     public int MaxEnergy { get; set; } = 100;
+    
+    [BsonElement("AvatarId")]
+    public int AvatarId { get; set; }
+
+    [BsonElement("FrameId")]
+    public int FrameId { get; set; }
+
+    [BsonElement("TitleId")]
+    public int TitleId { get; set; }
+
+    [BsonElement("FavoritePhraseId")]
+    public int PhraseId { get; set; }
 }

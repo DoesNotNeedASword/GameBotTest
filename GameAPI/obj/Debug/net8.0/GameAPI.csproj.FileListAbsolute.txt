@@ -113,3 +113,4 @@ E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.IdentityMod
 E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
 E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\Microsoft.IdentityModel.Tokens.dll
 E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\System.IdentityModel.Tokens.Jwt.dll
+E:\Coding\Projects\C#\GameBotTest\GameAPI\bin\Debug\net8.0\GameAPI.staticwebassets.runtime.json

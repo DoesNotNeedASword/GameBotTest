@@ -106,7 +106,7 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-
+app.UseStaticFiles();
 
 app.MapGet("/api/players", async (IPlayerService playerService, ICacheService cacheService) =>
 {
@@ -262,6 +262,13 @@ app.MapPut("/api/player/energy/consume", async ([FromBody] ConsumeEnergyDto dto,
     return player is null ? Results.Ok(player) : Results.BadRequest("Upgrade failed.");
 }).WithName("ConsumeEnergy");
 
+app.MapPut("/api/player/customization/{telegramId:long}", async (long telegramId,
+    [FromBody] PlayerCustomizationDto customizationDto, IPlayerService service) =>
+{
+    var result = await service.UpdatePlayerCustomizationAsync(telegramId, customizationDto);
+
+    return result ? Results.Ok("Customization updated successfully") : Results.NotFound("Error");
+}).WithName("UpdateCustomization");
 
 
 app.Run();

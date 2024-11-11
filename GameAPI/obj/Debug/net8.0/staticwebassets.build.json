@@ -1,11 +1,58 @@
 {
   "Version": 1,
-  "Hash": "lcDXYLbXGOK3i3z7SeJ/gla010u3rihkVPB/3R/U700=",
+  "Hash": "pAcIOhJ0Af+Ka8cCCi1WPkcBluOb+ICedyZ4gUmRPSg=",
   "Source": "GameAPI",
   "BasePath": "_content/GameAPI",
   "Mode": "Default",
   "ManifestType": "Build",
   "ReferencedProjectsConfiguration": [],
-  "DiscoveryPatterns": [],
-  "Assets": []
+  "DiscoveryPatterns": [
+    {
+      "Name": "GameAPI\\wwwroot",
+      "Source": "GameAPI",
+      "ContentRoot": "E:\\Coding\\Projects\\C#\\GameBotTest\\GameAPI\\wwwroot\\",
+      "BasePath": "_content/GameAPI",
+      "Pattern": "**"
+    }
+  ],
+  "Assets": [
+    {
+      "Identity": "E:\\Coding\\Projects\\C#\\GameBotTest\\GameAPI\\wwwroot\\images\\avatars\\1.png",
+      "SourceId": "GameAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "E:\\Coding\\Projects\\C#\\GameBotTest\\GameAPI\\wwwroot\\",
+      "BasePath": "_content/GameAPI",
+      "RelativePath": "images/avatars/1.png",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\images\\avatars\\1.png"
+    },
+    {
+      "Identity": "E:\\Coding\\Projects\\C#\\GameBotTest\\GameAPI\\wwwroot\\images\\frames\\1.png",
+      "SourceId": "GameAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "E:\\Coding\\Projects\\C#\\GameBotTest\\GameAPI\\wwwroot\\",
+      "BasePath": "_content/GameAPI",
+      "RelativePath": "images/frames/1.png",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\images\\frames\\1.png"
+    }
+  ]
 }
