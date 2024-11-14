@@ -41,7 +41,6 @@ public class PlayerService(IMongoDatabase database, IEnergyService energyService
         }
     
         await _players.InsertOneAsync(player);
-        
         await energyService.CreateAsync(player.TelegramId);
 
         return player;
@@ -128,8 +127,41 @@ public class PlayerService(IMongoDatabase database, IEnergyService energyService
             RegionIp = regionIp
         };
     }
+    public async Task<bool> UpdatePlayerCustomizationAsync(long playerId, PlayerCustomizationDto customizationDto)
+    {
+        var updateDefinitionBuilder = Builders<Player>.Update;
+        var updates = new List<UpdateDefinition<Player>>();
 
+        if (customizationDto.AvatarId != 0)
+        {
+            updates.Add(updateDefinitionBuilder.Set(p => p.AvatarId, customizationDto.AvatarId));
+        }
+
+        if (customizationDto.FrameId != 0)
+        {
+            updates.Add(updateDefinitionBuilder.Set(p => p.FrameId, customizationDto.FrameId));
+        }
+
+        if (customizationDto.TitleId != 0)
+        {
+            updates.Add(updateDefinitionBuilder.Set(p => p.TitleId, customizationDto.TitleId));
+        }
+
+        if (customizationDto.PhraseId != 0)
+        {
+            updates.Add(updateDefinitionBuilder.Set(p => p.PhraseId, customizationDto.PhraseId));
+        }
+
+        if (updates.Count == 0) return false;  
+
+        var update = updateDefinitionBuilder.Combine(updates);
+        var result = await _players.UpdateOneAsync(p => p.TelegramId == playerId, update);
+
+        return result.MatchedCount > 0;
+    }
 }
+
+
 
 
 

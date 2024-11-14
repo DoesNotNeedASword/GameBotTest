@@ -54,4 +54,5 @@ public interface IPlayerService
 
     Task<bool> AssignRegionToPlayerAsync(long playerId, int regionId);
     Task<PlayerLobbyDto?> GetPlayerWithRegionIpAsync(long playerId);
+    Task<bool> UpdatePlayerCustomizationAsync(long playerId, PlayerCustomizationDto customizationDto);
 }
