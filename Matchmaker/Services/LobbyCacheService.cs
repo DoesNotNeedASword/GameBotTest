@@ -3,6 +3,8 @@ using GameDomain.Models;
 using Matchmaker.Interfaces;
 using StackExchange.Redis;
 
+namespace Matchmaker.Services;
+
 public class LobbyCacheService : ILobbyCacheService
 {
     private readonly IDatabase _redisDb;

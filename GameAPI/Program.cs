@@ -1,100 +1,30 @@
-using System.Text;
 using System.Text.Json;
 using System.Web;
+using GameAPI.Extensions;
 using GameAPI.Models;
 using GameAPI.Models.DTO;
-using GameAPI.Options;
 using GameAPI.Services;
 using GameAPI.Verification.Model;
 using GameDomain.Interfaces;
 using GameDomain.Models;
 using GameDomain.Models.DTOs;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.IdentityModel.Tokens;
-using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER"),
-            ValidAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE"),
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_KEY")!))
-        };
-    });
-builder.Services.AddSingleton<JwtService>();
-builder.Services.AddAuthorization();
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddLogging();
 
-var mongoConnectionString = builder.Configuration["MONGODB_CONNECTIONSTRING"];
-var mongoDatabaseName = builder.Configuration["MONGODB_DATABASENAME"];
-const string cacheKey = "players";
-const string referrerKey = "referrer";
 var jsonSerializerOptions = new JsonSerializerOptions
 {
     PropertyNameCaseInsensitive = true
 };
 
-builder.Services.AddSingleton<IMongoClient>(_ =>
-{
-    var settings = MongoClientSettings.FromConnectionString(mongoConnectionString);
-    settings.MaxConnectionPoolSize = 500; 
-    return new MongoClient(settings);
-});
-builder.Services.AddSingleton<IMongoDatabase>(provider =>
-{
-    var client = provider.GetRequiredService<IMongoClient>();
-    return client.GetDatabase(mongoDatabaseName);
-});
+const string cacheKey = "players";
+const string referrerKey = "referrer";
 
-BsonClassMap.RegisterClassMap<Player>(cm =>
-{
-    cm.AutoMap();
-    cm.SetIgnoreExtraElements(true);  
-});
-BsonClassMap.RegisterClassMap<Region>(cm =>
-{
-    cm.AutoMap();
-    cm.SetIgnoreExtraElements(true);  
-});
-BsonClassMap.RegisterClassMap<EnergyStation>(cm =>
-{
-    cm.AutoMap();
-    cm.SetIgnoreExtraElements(true);  
-});
-var mongoDatabase = builder.Services.BuildServiceProvider().GetRequiredService<IMongoDatabase>();
-await MongoDbSeederSevice.SeedAsync(mongoDatabase); 
-
-var redisConfiguration = builder.Configuration["REDIS_CONNECTIONSTRING"];
+await MongoDbSeederSevice.SeedAsync(builder.AddMongoDb()); 
+builder.AddServices();
 const string constantKey = "WebAppData";
 var botToken = builder.Configuration["BOT_TOKEN"]!;
-builder.Services.AddStackExchangeRedisCache(cacheOptions =>
-{
-    cacheOptions.Configuration = redisConfiguration;
-    cacheOptions.InstanceName = "SampleInstance";
-});
-builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection("Redis"));
-builder.Services.AddScoped<IEnergyService, EnergyService>();
-builder.Services.AddScoped<IPlayerService, PlayerService>();
-builder.Services.AddScoped<ICacheService, CacheService>(provider => 
-    new CacheService(provider.GetRequiredService<IDistributedCache>(), provider.GetRequiredService<IPlayerService>()));
-builder.Services.AddScoped<ILevelService, LevelService>();
+
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
@@ -270,6 +200,36 @@ app.MapPut("/api/player/customization/{telegramId:long}", async (long telegramId
     return result ? Results.Ok("Customization updated successfully") : Results.NotFound("Error");
 }).WithName("UpdateCustomization");
 
+
+app.MapPost("/api/cars/{playerId:long}", async (long playerId, Car car, ICarService carsService) =>
+{
+    await carsService.AddCarToPlayerAsync(playerId, car);
+    return Results.Ok(car);
+});
+
+app.MapGet("/api/cars/{playerId:long}", async (long playerId, ICarService carsService) =>
+{
+    var cars = await carsService.GetCarsByPlayerAsync(playerId);
+    return Results.Ok(cars);
+});
+
+app.MapGet("/api/car/{carId}", async (string carId, ICarService carsService) =>
+{
+    var car = await carsService.GetCarByIdAsync(carId);
+    return car != null ? Results.Ok(car) : Results.NotFound("Car not found");
+});
+
+app.MapPut("/api/car/customize", async (CarCustomizationDto dto, ICarService carsService) =>
+{
+    var success = await carsService.CustomizeCarAsync(dto);
+    return success ? Results.Ok("Car customized") : Results.NotFound("Car not found");
+});
+
+app.MapDelete("/api/car/{carId}", async (string carId, ICarService carsService) =>
+{
+    var success = await carsService.RemoveCarAsync(carId);
+    return success ? Results.Ok("Car removed") : Results.NotFound("Car not found");
+});
 
 app.Run();
 
