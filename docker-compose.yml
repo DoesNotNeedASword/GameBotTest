@@ -52,7 +52,7 @@ services:
       context: .
       dockerfile: Market/Dockerfile
     ports:
-      - "7000:7001"
+      - "7000:8080"
     depends_on:
       - redis
     env_file:

@@ -23,8 +23,8 @@ services:
       RESHARPER_LOG_CONF: "/etc/opt/rider-debugger/backend-log.xml"
     image: "gameapi:dev"
     ports:
-    - "127.0.0.1:57012:57100"
-    - "127.0.0.1:57212:57300"
+    - "127.0.0.1:57020:57100"
+    - "127.0.0.1:57220:57300"
     volumes:
     - "C:\\Users\\legen\\.nuget\\packages:/home/app/.nuget/packages"
     - "E:\\Coding\\Projects\\C#\\GameBotTest\\GameAPI:/app:rw"
@@ -33,7 +33,7 @@ services:
       Linux64:/opt/rider-debugger"
     - "E:\\Coding\\JetBrains Rider 2023.3.3\\bin:/etc/opt/rider-debugger/backend-log.xml"
     - "C:\\Users\\legen\\AppData\\Local\\JetBrains\\Rider2023.3\\log\\DebuggerWorker\\\
-      JetBrains.Debugger.Worker.2024_11_19_01_27_29:/var/opt/rider-debugger:rw"
+      JetBrains.Debugger.Worker.2024_11_19_01_47_12:/var/opt/rider-debugger:rw"
     working_dir: "/app"
   gamebottest:
     build:
@@ -56,8 +56,8 @@ services:
       RESHARPER_LOG_CONF: "/etc/opt/rider-debugger/backend-log.xml"
     image: "gamebottest:dev"
     ports:
-    - "127.0.0.1:57013:57100"
-    - "127.0.0.1:57213:57300"
+    - "127.0.0.1:57021:57100"
+    - "127.0.0.1:57221:57300"
     volumes:
     - "C:\\Users\\legen\\.nuget\\packages:/root/.nuget/packages"
     - "E:\\Coding\\Projects\\C#\\GameBotTest\\GameBotTest:/app:rw"
@@ -66,7 +66,7 @@ services:
       Linux64:/opt/rider-debugger"
     - "E:\\Coding\\JetBrains Rider 2023.3.3\\bin:/etc/opt/rider-debugger/backend-log.xml"
     - "C:\\Users\\legen\\AppData\\Local\\JetBrains\\Rider2023.3\\log\\DebuggerWorker\\\
-      JetBrains.Debugger.Worker.2024_11_19_01_27_29:/var/opt/rider-debugger:rw"
+      JetBrains.Debugger.Worker.2024_11_19_01_47_12:/var/opt/rider-debugger:rw"
     working_dir: "/app"
   lobby-service:
     build:
@@ -89,8 +89,8 @@ services:
       RESHARPER_LOG_CONF: "/etc/opt/rider-debugger/backend-log.xml"
     image: "lobby-service:dev"
     ports:
-    - "127.0.0.1:57014:57100"
-    - "127.0.0.1:57214:57300"
+    - "127.0.0.1:57022:57100"
+    - "127.0.0.1:57222:57300"
     volumes:
     - "C:\\Users\\legen\\.nuget\\packages:/home/app/.nuget/packages"
     - "E:\\Coding\\Projects\\C#\\GameBotTest\\Matchmaker:/app:rw"
@@ -99,7 +99,7 @@ services:
       Linux64:/opt/rider-debugger"
     - "E:\\Coding\\JetBrains Rider 2023.3.3\\bin:/etc/opt/rider-debugger/backend-log.xml"
     - "C:\\Users\\legen\\AppData\\Local\\JetBrains\\Rider2023.3\\log\\DebuggerWorker\\\
-      JetBrains.Debugger.Worker.2024_11_19_01_27_29:/var/opt/rider-debugger:rw"
+      JetBrains.Debugger.Worker.2024_11_19_01_47_12:/var/opt/rider-debugger:rw"
     working_dir: "/app"
   market-service:
     build:
@@ -122,8 +122,8 @@ services:
       RESHARPER_LOG_CONF: "/etc/opt/rider-debugger/backend-log.xml"
     image: "market-service:dev"
     ports:
-    - "127.0.0.1:57015:57100"
-    - "127.0.0.1:57215:57300"
+    - "127.0.0.1:57023:57100"
+    - "127.0.0.1:57223:57300"
     volumes:
     - "C:\\Users\\legen\\.nuget\\packages:/home/app/.nuget/packages"
     - "E:\\Coding\\Projects\\C#\\GameBotTest\\Market:/app:rw"
@@ -132,5 +132,5 @@ services:
       Linux64:/opt/rider-debugger"
     - "E:\\Coding\\JetBrains Rider 2023.3.3\\bin:/etc/opt/rider-debugger/backend-log.xml"
     - "C:\\Users\\legen\\AppData\\Local\\JetBrains\\Rider2023.3\\log\\DebuggerWorker\\\
-      JetBrains.Debugger.Worker.2024_11_19_01_27_29:/var/opt/rider-debugger:rw"
+      JetBrains.Debugger.Worker.2024_11_19_01_47_12:/var/opt/rider-debugger:rw"
     working_dir: "/app"

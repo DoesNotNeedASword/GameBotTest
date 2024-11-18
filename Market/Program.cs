@@ -11,10 +11,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSingleton<IMarketService, MarketService>();
-builder.WebHost.UseKestrel(options =>
-{
-    options.ListenAnyIP(7000); // HTTP
-});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
