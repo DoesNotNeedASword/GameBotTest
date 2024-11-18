@@ -6,7 +6,7 @@ using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var redisConnectionString = builder.Configuration["Redis__ConnectionString"];
+var redisConnectionString = builder.Configuration["REDIS_CONNECTIONSTRING"]!;
 builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnectionString));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -37,7 +37,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/", () => "MarketService is running!"); // Главный маршрут для проверки
 
-app.MapPost("/marketplace/list", async (ListingDto listing, IMarketService marketService) =>
+app.MapPost("/market/list", async (ListingDto listing, IMarketService marketService) =>
     {
         var result = await marketService.ListCarAsync(listing);
         return result ? Results.Ok("Car listed successfully") : Results.BadRequest("Failed to list car");
@@ -45,7 +45,7 @@ app.MapPost("/marketplace/list", async (ListingDto listing, IMarketService marke
     .WithName("ListCar")
     .WithTags("Marketplace");
 
-app.MapGet("/marketplace/cars", async (IMarketService marketService) =>
+app.MapGet("/market/cars", async (IMarketService marketService) =>
     {
         var cars = await marketService.GetAllListingsAsync();
         return Results.Ok(cars);
@@ -53,7 +53,7 @@ app.MapGet("/marketplace/cars", async (IMarketService marketService) =>
     .WithName("GetAllCars")
     .WithTags("Marketplace");
 
-app.MapDelete("/marketplace/remove/{id}", async (string id, IMarketService marketService) =>
+app.MapDelete("/market/remove/{id}", async (string id, IMarketService marketService) =>
     {
         var result = await marketService.RemoveListingAsync(id);
         return result ? Results.Ok("Listing removed successfully") : Results.NotFound("Listing not found");
