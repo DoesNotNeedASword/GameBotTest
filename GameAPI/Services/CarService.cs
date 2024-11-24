@@ -8,6 +8,7 @@ namespace GameAPI.Services;
 public class CarService(IMongoDatabase database) : ICarService
 {
     private readonly IMongoCollection<Car> _cars = database.GetCollection<Car>("Cars");
+    private readonly IMongoCollection<Player> _players = database.GetCollection<Player>("Players");
 
     public async Task AddCarToPlayerAsync(long playerId, Car car)
     {
@@ -39,5 +40,18 @@ public class CarService(IMongoDatabase database) : ICarService
     {
         var result = await _cars.DeleteOneAsync(car => car.Id == carId);
         return result.DeletedCount > 0;
+    }
+
+    public async Task<bool> TransferCarOwnershipAsync(string carId, long newOwnerId)
+    {
+        var car = await _cars.Find(c => c.Id == carId).FirstOrDefaultAsync();
+        if (car == null) return false;
+
+        var newOwner = await _players.Find(p => p.TelegramId == newOwnerId).FirstOrDefaultAsync();
+        if (newOwner == null) return false;
+
+        car.PlayerId = newOwnerId;
+        await _cars.ReplaceOneAsync(c => c.Id == carId, car);
+        return true;
     }
 }

@@ -10,4 +10,5 @@ public interface ICarService
     Task<Car?> GetCarByIdAsync(string carId);
     Task<bool> CustomizeCarAsync(CarCustomizationDto customizationDto);
     Task<bool> RemoveCarAsync(string carId);
+    Task<bool> TransferCarOwnershipAsync(string carId, long newOwnerId);
 }

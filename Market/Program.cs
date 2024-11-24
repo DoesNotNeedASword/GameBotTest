@@ -7,11 +7,18 @@ using StackExchange.Redis;
 var builder = WebApplication.CreateBuilder(args);
 
 var redisConnectionString = builder.Configuration["REDIS_CONNECTIONSTRING"]!;
+
 builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnectionString));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSingleton<IMarketService, MarketService>();
-
+builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<IGameApiClient, GameApiClient>();
+builder.Services.AddScoped<IMarketService, MarketService>();
+builder.Services.AddStackExchangeRedisCache(cacheOptions =>
+{
+    cacheOptions.Configuration = redisConnectionString;
+    cacheOptions.InstanceName = "SampleInstance";
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -19,7 +26,6 @@ builder.Services.AddSwaggerGen(options =>
     {
         Version = "v1",
         Title = "MarketService API",
-        Description = "API для управления выставлением машин на продажу"
     });
 });
 
@@ -40,7 +46,7 @@ app.MapGet("/", () => "MarketService is running!"); // Главный маршр
 app.MapPost("/market/list", async (ListingDto listing, IMarketService marketService) =>
     {
         var result = await marketService.ListCarAsync(listing);
-        return result ? Results.Ok("Car listed successfully") : Results.BadRequest("Failed to list car");
+        return result ? Results.Ok(listing.Id) : Results.BadRequest("Failed to list car");
     })
     .WithName("ListCar")
     .WithTags("Marketplace");
@@ -59,6 +65,14 @@ app.MapDelete("/market/remove/{id}", async (string id, IMarketService marketServ
         return result ? Results.Ok("Listing removed successfully") : Results.NotFound("Listing not found");
     })
     .WithName("RemoveCarListing")
+    .WithTags("Marketplace");
+
+app.MapPost("/market/purchase", async (PurchaseDto purchase, IMarketService marketService) =>
+    {
+        var result = await marketService.PurchaseCarAsync(purchase.BuyerId, purchase.ListingId);
+        return result ? Results.Ok("Purchase successful") : Results.BadRequest("Purchase failed");
+    })
+    .WithName("PurchaseCar")
     .WithTags("Marketplace");
 
 app.Run();

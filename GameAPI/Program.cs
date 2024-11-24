@@ -213,23 +213,49 @@ app.MapGet("/api/cars/{playerId:long}", async (long playerId, ICarService carsSe
     return Results.Ok(cars);
 });
 
-app.MapGet("/api/car/{carId}", async (string carId, ICarService carsService) =>
+app.MapGet("/api/cars/{carId}", async (string carId, ICarService carsService) =>
 {
     var car = await carsService.GetCarByIdAsync(carId);
     return car != null ? Results.Ok(car) : Results.NotFound("Car not found");
 });
 
-app.MapPut("/api/car/customize", async (CarCustomizationDto dto, ICarService carsService) =>
+app.MapPut("/api/cars/customize", async (CarCustomizationDto dto, ICarService carsService) =>
 {
     var success = await carsService.CustomizeCarAsync(dto);
     return success ? Results.Ok("Car customized") : Results.NotFound("Car not found");
 });
 
-app.MapDelete("/api/car/{carId}", async (string carId, ICarService carsService) =>
+app.MapDelete("/api/cars/{carId}", async (string carId, ICarService carsService) =>
 {
     var success = await carsService.RemoveCarAsync(carId);
     return success ? Results.Ok("Car removed") : Results.NotFound("Car not found");
 });
+
+app.MapPut("/api/cars/transfer", async (TransferCarDto transferDto, ICarService carsService) =>
+{
+    var success = await carsService.TransferCarOwnershipAsync(transferDto.CarId, transferDto.NewOwnerId);
+    return success ? Results.Ok("Car ownership transferred") : Results.NotFound("Car or owner not found");
+}).WithName("TransferCarOwnership");
+
+
+app.MapGet("/api/players/data/{telegramId:long}", async (long telegramId, IPlayerService playerService) =>
+{
+    var player = await playerService.GetPlayerAsync(telegramId);
+    return player != null ? Results.Ok(player) : Results.NotFound("Player not found");
+}).WithName("GetPlayerData");
+
+app.MapPut("/api/players/update/{telegramId:long}", async (long telegramId, Player player, IPlayerService playerService) =>
+{
+    await playerService.UpdateAsync(telegramId, player);
+    return Results.Ok("Player updated");
+}).WithName("UpdatePlayerData");
+
+app.MapPost("/api/players/transfer", async ([FromBody] TransferCurrencyDto transferDto, IPlayerService playerService) =>
+{
+    var success = await playerService.TransferCurrencyAsync(transferDto.FromPlayerId, transferDto.ToPlayerId, transferDto.Amount);
+    return success ? Results.Ok("Transaction completed") : Results.BadRequest("Transaction failed");
+}).WithName("TransferCurrency");
+
 
 app.Run();
 
