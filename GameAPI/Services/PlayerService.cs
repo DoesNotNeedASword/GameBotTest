@@ -159,6 +159,25 @@ public class PlayerService(IMongoDatabase database, IEnergyService energyService
 
         return result.MatchedCount > 0;
     }
+    public async Task<bool> TransferCurrencyAsync(long fromPlayerId, long toPlayerId, long amount)
+    {
+        var fromPlayer = await _players.Find(p => p.TelegramId == fromPlayerId).FirstOrDefaultAsync();
+        var toPlayer = await _players.Find(p => p.TelegramId == toPlayerId).FirstOrDefaultAsync();
+
+        if (fromPlayer == null || toPlayer == null || fromPlayer.SoftCurrency < amount)
+        {
+            return false;
+        }
+
+        fromPlayer.SoftCurrency -= amount;
+        toPlayer.SoftCurrency += amount;
+
+        await _players.ReplaceOneAsync(p => p.TelegramId == fromPlayerId, fromPlayer);
+        await _players.ReplaceOneAsync(p => p.TelegramId == toPlayerId, toPlayer);
+
+        return true;
+    }
+
 }
 
 
