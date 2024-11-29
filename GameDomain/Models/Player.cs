@@ -63,4 +63,9 @@ public class Player
 
     [BsonElement("FavoritePhraseId")]
     public int PhraseId { get; set; }
+    [BsonElement("Statistics")]
+    public BsonDocument Statistics { get; set; } = new BsonDocument();
+    
+    [BsonElement("CompletedQuests")]
+    public List<string> CompletedQuests { get; set; } = []; 
 }

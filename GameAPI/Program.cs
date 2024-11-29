@@ -9,6 +9,7 @@ using GameDomain.Interfaces;
 using GameDomain.Models;
 using GameDomain.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -205,37 +206,37 @@ app.MapPost("/api/cars/{playerId:long}", async (long playerId, Car car, ICarServ
 {
     await carsService.AddCarToPlayerAsync(playerId, car);
     return Results.Ok(car);
-});
+}).WithTags("Cars");
 
 app.MapGet("/api/cars/{playerId:long}", async (long playerId, ICarService carsService) =>
 {
     var cars = await carsService.GetCarsByPlayerAsync(playerId);
     return Results.Ok(cars);
-});
+}).WithTags("Cars");
 
 app.MapGet("/api/cars/{carId}", async (string carId, ICarService carsService) =>
 {
     var car = await carsService.GetCarByIdAsync(carId);
     return car != null ? Results.Ok(car) : Results.NotFound("Car not found");
-});
+}).WithTags("Cars");
 
 app.MapPut("/api/cars/customize", async (CarCustomizationDto dto, ICarService carsService) =>
 {
     var success = await carsService.CustomizeCarAsync(dto);
     return success ? Results.Ok("Car customized") : Results.NotFound("Car not found");
-});
+}).WithTags("Cars");
 
 app.MapDelete("/api/cars/{carId}", async (string carId, ICarService carsService) =>
 {
     var success = await carsService.RemoveCarAsync(carId);
     return success ? Results.Ok("Car removed") : Results.NotFound("Car not found");
-});
+}).WithTags("Cars");
 
 app.MapPut("/api/cars/transfer", async (TransferCarDto transferDto, ICarService carsService) =>
 {
     var success = await carsService.TransferCarOwnershipAsync(transferDto.CarId, transferDto.NewOwnerId);
     return success ? Results.Ok("Car ownership transferred") : Results.NotFound("Car or owner not found");
-}).WithName("TransferCarOwnership");
+}).WithName("TransferCarOwnership").WithTags("Cars");
 
 
 app.MapGet("/api/players/data/{telegramId:long}", async (long telegramId, IPlayerService playerService) =>
@@ -255,6 +256,59 @@ app.MapPost("/api/players/transfer", async ([FromBody] TransferCurrencyDto trans
     var success = await playerService.TransferCurrencyAsync(transferDto.FromPlayerId, transferDto.ToPlayerId, transferDto.Amount);
     return success ? Results.Ok("Transaction completed") : Results.BadRequest("Transaction failed");
 }).WithName("TransferCurrency");
+
+app.MapGet("/api/players/stat/{id:long}", async (long id, IPlayerService playerService) =>
+{
+    var player = await playerService.GetFullPlayerAsync(id);
+    return player == null ? Results.NotFound($"Player with ID {id} not found.") : Results.Ok(player.Statistics.ToDictionary());
+}).WithName("GetPlayerStatistics").WithTags("Statistics");
+
+app.MapGet("/api/players/stat/{id:long}/{key}", async (long id, string key, IPlayerService playerService) =>
+{
+    var player = await playerService.GetFullPlayerAsync(id);
+    if (player == null) return Results.NotFound($"Player with ID {id} not found.");
+
+    return !player.Statistics.Contains(key) ? 
+        Results.NotFound($"Statistic '{key}' not found for player with ID {id}.") : 
+        Results.Ok(new { Key = key, Value = player.Statistics[key] });
+}).WithName("GetPlayerStatisticByKey").WithTags("Statistics");
+
+app.MapPut("/api/players/stat/{id:long}", async (long id,
+    [FromBody] Dictionary<string, int> updates, IPlayerService playerService) =>
+{
+    var success = await playerService.UpdatePlayerStatisticsAsync(id, updates);
+    return success ? Results.Ok($"Statistics for player {id} updated.") : Results.NotFound($"Player with ID {id} not found.");
+}).WithName("UpdatePlayerStatistics").WithTags("Statistics");
+
+app.MapGet("/api/quests", async (IQuestService questService) =>
+{
+    var quests = await questService.GetAvailableQuestsAsync();
+    return Results.Ok(quests);
+}).WithName("GetAvailableQuests").WithTags("Quests");
+
+app.MapPost("/api/quests/check/{playerId:long}", async (long playerId, IQuestService questService) =>
+{
+    var success = await questService.CheckAndRewardAsync(playerId);
+    return success 
+        ? Results.Ok("Quests checked and rewards applied if any.") 
+        : Results.NotFound("Player not found or no quests completed.");
+}).WithName("CheckAndRewardQuests").WithTags("Quests");
+
+app.MapPost("/api/quests/create", async (Quest quest, IQuestService questService) =>
+{
+    var success = await questService.CreateQuestAsync(quest);
+    return success 
+        ? Results.Ok("Quest created successfully.") 
+        : Results.BadRequest("Failed to create quest. Check input data or ensure the quest does not already exist.");
+}).WithName("CreateQuest").WithTags("Quests");
+
+app.MapGet("/api/quests/available/{playerId:long}", async (long playerId, IQuestService questService) =>
+{
+    var quests = await questService.GetAvailableQuestsForPlayerAsync(playerId);
+    return quests.Count > 0 
+        ? Results.Ok(quests) 
+        : Results.NotFound($"No available quests for player with ID {playerId}.");
+}).WithName("GetAvailableQuestsForPlayer").WithTags("Quests");
 
 
 app.Run();
