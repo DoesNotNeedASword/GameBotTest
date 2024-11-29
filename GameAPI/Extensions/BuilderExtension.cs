@@ -34,7 +34,7 @@ public static class BuilderExtension
                 };
             });
         builder.Services.AddSingleton<JwtService>();
-        builder.Services.AddSingleton<ICarService, CarService>();
+        builder.Services.AddScoped<ICarService, CarService>();
         builder.Services.AddAuthorization();
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
@@ -52,6 +52,7 @@ public static class BuilderExtension
         builder.Services.AddScoped<ICacheService, CacheService>(provider => 
             new CacheService(provider.GetRequiredService<IDistributedCache>(), provider.GetRequiredService<IPlayerService>()));
         builder.Services.AddScoped<ILevelService, LevelService>();
+        builder.Services.AddScoped<IQuestService, QuestService>();
     }
     public static IMongoDatabase AddMongoDb(this WebApplicationBuilder builder)
     {

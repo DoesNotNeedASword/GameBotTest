@@ -15,6 +15,8 @@ public interface IPlayerService
     /// </summary>
     Task<PlayerDto?> GetPlayerAsync(long id);
 
+    Task<Player?> GetFullPlayerAsync(long id);
+
     /// <summary>
     /// Создать нового игрока.
     /// </summary>
@@ -56,4 +58,5 @@ public interface IPlayerService
     Task<PlayerLobbyDto?> GetPlayerWithRegionIpAsync(long playerId);
     Task<bool> UpdatePlayerCustomizationAsync(long playerId, PlayerCustomizationDto customizationDto);
     Task<bool> TransferCurrencyAsync(long fromPlayerId, long toPlayerId, long amount);
+    Task<bool> UpdatePlayerStatisticsAsync(long playerId, Dictionary<string, int> updates);
 }

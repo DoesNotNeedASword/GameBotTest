@@ -1,6 +1,7 @@
 ﻿using GameDomain.Interfaces;
 using GameDomain.Models;
 using GameDomain.Models.DTOs;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace GameAPI.Services;
@@ -22,6 +23,7 @@ public class PlayerService(IMongoDatabase database, IEnergyService energyService
         var player = await _players.Find(p => p.TelegramId == playerId).FirstOrDefaultAsync();
         return player is null ? null : new PlayerDto(player);
     }
+    public async Task<Player?> GetFullPlayerAsync(long playerId) => await _players.Find(p => p.TelegramId == playerId).FirstOrDefaultAsync();
 
     public async Task<Player> CreateAsync(Player player)
     {
@@ -177,6 +179,20 @@ public class PlayerService(IMongoDatabase database, IEnergyService energyService
 
         return true;
     }
+    
+    public async Task<bool> UpdatePlayerStatisticsAsync(long playerId, Dictionary<string, int> updates)
+    {
+        var player = await _players.Find(p => p.TelegramId == playerId).FirstOrDefaultAsync();
+        if (player == null) return false;
+
+
+        player.Statistics.AddRange(updates);
+        
+
+        var result = await _players.ReplaceOneAsync(p => p.TelegramId == playerId, player);
+        return result.IsAcknowledged && result.ModifiedCount > 0;
+    }
+
 
 }
 
