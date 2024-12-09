@@ -310,6 +310,18 @@ app.MapGet("/api/quests/available/{playerId:long}", async (long playerId, IQuest
         : Results.NotFound($"No available quests for player with ID {playerId}.");
 }).WithName("GetAvailableQuestsForPlayer").WithTags("Quests");
 
+app.MapPost("/api/players/{id:long}/compensate-login", async (long id, IPlayerService playerService) =>
+{
+    var success = await playerService.CompensateMissedDayAsync(id);
+    return success ? Results.Ok("Missed day compensated.") : Results.BadRequest("No missed day to compensate.");
+}).WithName("CompensateMissedLogin").WithTags("Daily Rewards");
+
+app.MapPost("/api/players/{id:long}/watched-ad", async (long id, IPlayerService playerService) =>
+{
+    var success = await playerService.CompensateMissedDayAsync(id);
+    return success ? Results.Ok("Ad watched. Missed day compensated.") : Results.BadRequest("No missed day to compensate.");
+}).WithName("WatchedAd").WithTags("Ads");
+
 
 app.Run();
 

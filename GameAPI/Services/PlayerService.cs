@@ -192,6 +192,52 @@ public class PlayerService(IMongoDatabase database, IEnergyService energyService
         var result = await _players.ReplaceOneAsync(p => p.TelegramId == playerId, player);
         return result.IsAcknowledged && result.ModifiedCount > 0;
     }
+    
+    public async Task<bool> UpdateDailyLoginAsync(long playerId)
+    {
+        var player = await _players.Find(p => p.TelegramId == playerId).FirstOrDefaultAsync();
+        if (player == null) return false;
+
+        var currentDate = DateTime.UtcNow.Date;
+
+        if (player.LastLoginDate.Date == currentDate) return true;
+
+        if (player.LastLoginDate.Date == currentDate.AddDays(-1))
+        {
+            player.LoginStreak++;
+        }
+        else
+        {
+            player.LoginStreak = 1;
+            player.MissedDayCompensation = true; 
+        }
+        if (player.LoginStreak > player.MaxLoginStreak)
+        {
+            player.MaxLoginStreak = player.LoginStreak;
+        }
+        player.LastLoginDate = currentDate;
+        var result = await _players.ReplaceOneAsync(p => p.TelegramId == playerId, player);
+        return result.ModifiedCount > 0;
+    }
+
+    public async Task<bool> CompensateMissedDayAsync(long playerId)
+    {
+        var player = await _players.Find(p => p.TelegramId == playerId).FirstOrDefaultAsync();
+        if (player == null) return false;
+
+        if (!player.MissedDayCompensation) return false;
+
+        player.LoginStreak++;
+        player.MissedDayCompensation = false; 
+
+        if (player.LoginStreak > player.MaxLoginStreak)
+        {
+            player.MaxLoginStreak = player.LoginStreak;
+        }
+
+        var result = await _players.ReplaceOneAsync(p => p.TelegramId == playerId, player);
+        return result.ModifiedCount > 0;
+    }
 
 
 }
