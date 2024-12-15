@@ -181,11 +181,29 @@ app.MapPost("/api/player/energy/refill/{playerId:long}", async (long playerId, I
     return success ? Results.Ok("Energy refilled") : Results.BadRequest("Cannot refill energy yet.");
 }).WithName("RefillEnergy");
 
-app.MapPost("/api/player/energy/upgrade/{playerId:long}", async (long playerId, IEnergyService energyService) =>
+app.MapPost("/api/energy/create/{playerId:long}", async (long playerId, IEnergyService energyService) =>
 {
-    var success = await energyService.UpgradeRefillStationAsync(playerId);
-    return success ? Results.Ok("Energy station upgraded") : Results.BadRequest("Upgrade failed.");
-}).WithName("UpgradeEnergyStation");
+    var success = await energyService.CreateAsync(playerId);
+    return success ? Results.Ok("Station created successfully.") : Results.BadRequest("Station already exists.");
+});
+
+app.MapPost("/api/energy/upgrade/start/{playerId:long}", async (long playerId, IEnergyService energyService) =>
+{
+    var success = await energyService.StartUpgradeAsync(playerId);
+    return success ? Results.Ok("Upgrade started successfully.") : Results.BadRequest("Failed to start upgrade.");
+});
+
+app.MapPost("/api/energy/upgrade/reduce/{playerId:long}", async (long playerId, IEnergyService energyService) =>
+{
+    var success = await energyService.ReduceUpgradeTimeAsync(playerId);
+    return success ? Results.Ok("Upgrade time reduced to 2 hours.") : Results.BadRequest("Failed to reduce upgrade time.");
+});
+
+app.MapPut("/api/energy/upgrade/complete/{playerId:long}", async (long playerId, IEnergyService energyService) =>
+{
+    var success = await energyService.CompleteUpgradeAsync(playerId);
+    return success ? Results.Ok("Upgrade completed successfully.") : Results.BadRequest("Upgrade not ready or failed.");
+});
 
 app.MapPut("/api/player/energy/consume", async ([FromBody] ConsumeEnergyDto dto, [FromServices] IEnergyService energyService) =>
 {
@@ -309,6 +327,25 @@ app.MapGet("/api/quests/available/{playerId:long}", async (long playerId, IQuest
         ? Results.Ok(quests) 
         : Results.NotFound($"No available quests for player with ID {playerId}.");
 }).WithName("GetAvailableQuestsForPlayer").WithTags("Quests");
+
+app.MapPost("/api/players/{id:long}/daily-login", async (long id, IPlayerService playerService) =>
+{
+    var success = await playerService.UpdateDailyLoginAsync(id);
+    return success ? Results.Ok("Daily login updated.") : Results.NotFound("Player not found.");
+}).WithName("UpdateDailyLogin").WithTags("Daily Rewards");
+
+
+app.MapPost("/api/players/{id:long}/compensate-login", async (long id, IPlayerService playerService) =>
+{
+    var success = await playerService.CompensateMissedDayAsync(id);
+    return success ? Results.Ok("Missed day compensated.") : Results.BadRequest("No missed day to compensate.");
+}).WithName("CompensateMissedLogin").WithTags("Daily Rewards");
+
+app.MapPost("/api/players/{id:long}/watched-ad", async (long id, IPlayerService playerService) =>
+{
+    var success = await playerService.CompensateMissedDayAsync(id);
+    return success ? Results.Ok("Ad watched. Missed day compensated.") : Results.BadRequest("No missed day to compensate.");
+}).WithName("WatchedAd").WithTags("Ads");
 
 
 app.Run();

@@ -68,4 +68,16 @@ public class Player
     
     [BsonElement("CompletedQuests")]
     public List<string> CompletedQuests { get; set; } = []; 
+    
+    [BsonElement("LastLoginDate")]
+    public DateTime LastLoginDate { get; set; } = DateTime.MinValue;
+
+    [BsonElement("LoginStreak")]
+    public int LoginStreak { get; set; } = 0;
+
+    [BsonElement("MaxLoginStreak")]
+    public int MaxLoginStreak { get; set; } = 0; 
+
+    [BsonElement("MissedDayCompensation")]
+    public bool MissedDayCompensation { get; set; } = false;
 }

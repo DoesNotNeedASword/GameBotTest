@@ -59,4 +59,6 @@ public interface IPlayerService
     Task<bool> UpdatePlayerCustomizationAsync(long playerId, PlayerCustomizationDto customizationDto);
     Task<bool> TransferCurrencyAsync(long fromPlayerId, long toPlayerId, long amount);
     Task<bool> UpdatePlayerStatisticsAsync(long playerId, Dictionary<string, int> updates);
+    Task<bool> CompensateMissedDayAsync(long playerId);
+    Task<bool> UpdateDailyLoginAsync(long playerId);
 }
